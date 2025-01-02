@@ -6,6 +6,7 @@ import {
   ReturnModelType,
   modelOptions,
   Severity,
+  index,
 } from '@typegoose/typegoose';
 import { Group } from '../group/group';
 import { Base, TimeStamps } from '@typegoose/typegoose/lib/defaultClasses';
@@ -31,6 +32,8 @@ class MessageReaction {
     allowMixed: Severity.ALLOW,
   },
 })
+@index({ createdAt: -1 })
+@index({ converseId: 1, _id: -1 }) // for fetchConverseMessage
 export class Message extends TimeStamps implements Base {
   _id: Types.ObjectId;
   id: string;
@@ -77,7 +80,7 @@ export class Message extends TimeStamps implements Base {
     startId: string | null,
     limit = 50
   ) {
-    const conditions: FilterQuery<DocumentType<Message>> = {
+    const conditions: FilterQuery<MessageDocument> = {
       converseId,
     };
     if (startId !== null) {

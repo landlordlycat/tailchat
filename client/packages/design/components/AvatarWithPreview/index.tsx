@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { Avatar, AvatarProps } from '../Avatar';
-import { Image } from '../Image';
+import { Image, imageUrlParser } from '../Image';
+import { isValidStr } from '../utils';
 
 export const AvatarWithPreview: React.FC<AvatarProps> = React.memo((props) => {
   const [visible, setVisible] = useState(false);
 
-  const hasImage = typeof props.src === 'string';
+  const hasImage = isValidStr(props.src);
 
   return (
     <>
@@ -27,7 +28,7 @@ export const AvatarWithPreview: React.FC<AvatarProps> = React.memo((props) => {
           <Image
             preview={{
               visible,
-              src: String(props.src),
+              src: imageUrlParser(String(props.src)),
               onVisibleChange: (value) => {
                 setVisible(value);
               },

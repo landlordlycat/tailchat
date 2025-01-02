@@ -41,6 +41,17 @@ class GroupTopicService extends TcService {
         replyCommentId: { type: 'string', optional: true },
       },
     });
+    this.registerAction('delete', this.delete, {
+      params: {
+        groupId: 'string',
+        panelId: 'string',
+        topicId: 'string',
+      },
+    });
+  }
+
+  protected onInited(): void {
+    this.setPanelFeature('com.msgbyte.topic/grouppanel', ['subscribe']);
   }
 
   /**
@@ -121,7 +132,7 @@ class GroupTopicService extends TcService {
 
     const json = await this.transformDocuments(ctx, {}, topic);
 
-    this.roomcastNotify(ctx, groupId, 'create', json);
+    this.roomcastNotify(ctx, panelId, 'create', json);
 
     return json;
   }
@@ -175,9 +186,65 @@ class GroupTopicService extends TcService {
 
     const json = await this.transformDocuments(ctx, {}, topic);
 
-    this.roomcastNotify(ctx, groupId, 'createComment', json);
+    this.roomcastNotify(ctx, panelId, 'createComment', json);
+
+    // 向所有参与者都添加收件箱消息
+    const memberIds = _.uniq([
+      topic.author,
+      ...topic.comments.map((c) => c.author),
+    ]);
+
+    await Promise.all(
+      memberIds.map((memberId) =>
+        call(ctx).appendInbox(
+          'plugin:com.msgbyte.topic.comment',
+          json,
+          String(memberId)
+        )
+      )
+    );
 
     return true;
+  }
+
+  /**
+   * 删除话题
+   */
+  async delete(
+    ctx: TcContext<{
+      groupId: string;
+      panelId: string;
+      topicId: string;
+    }>
+  ) {
+    const { groupId, panelId, topicId } = ctx.params;
+    const userId = ctx.meta.userId;
+    const t = ctx.meta.t;
+
+    // 鉴权
+    const group = await call(ctx).getGroupInfo(groupId);
+    const isMember = group.members.some((member) => member.userId === userId);
+    if (!isMember) {
+      throw new Error(t('不是该群组成员'));
+    }
+
+    if (String(group.owner) !== userId) {
+      throw new Error(t('仅群组所有者有权限删除话题'));
+    }
+
+    const result = await this.adapter.model.deleteOne({
+      _id: topicId,
+      groupId,
+      panelId,
+    });
+
+    this.roomcastNotify(ctx, panelId, 'delete', {
+      groupId,
+      panelId,
+      topicId,
+    });
+
+    return result.deletedCount > 0;
   }
 }
 

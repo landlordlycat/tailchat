@@ -14,9 +14,14 @@ const themeConfig = {
         type: 'doc',
         docId: 'intro',
         position: 'left',
-        label: '文档',
+        label: 'Docs',
       },
-      { to: '/blog', label: '博客', position: 'left' },
+      { to: '/blog', label: 'Blog', position: 'left' },
+      { to: '/downloads', label: 'Downloads', position: 'left' },
+      {
+        type: 'localeDropdown',
+        position: 'right',
+      },
       {
         href: 'https://github.com/msgbyte/tailchat',
         label: 'GitHub',
@@ -90,10 +95,11 @@ const presetClassicOptions = {
   docs: {
     sidebarPath: require.resolve('./sidebars.js'),
     // Please change this to your repo.
-    editUrl: 'https://github.com/msgbyte/tailchat-website/edit/master/website/',
+    editUrl: 'https://github.com/msgbyte/tailchat/edit/master/website/',
   },
   blog: {
     postsPerPage: 5,
+    blogSidebarCount: 'ALL',
   },
   // blog: false,
   theme: {
@@ -104,7 +110,7 @@ const presetClassicOptions = {
 /** @type {import('@docusaurus/types').DocusaurusConfig} */
 module.exports = {
   title: 'Tailchat',
-  tagline: '一个插件化易拓展的开源 IM 应用',
+  tagline: 'The next-generation noIM Application in your own workspace',
   url: 'https://tailchat.msgbyte.com', // TODO: 待修改成文档主页
   baseUrl: '/',
   onBrokenLinks: 'throw',
@@ -113,6 +119,21 @@ module.exports = {
   organizationName: 'msgbyte', // Usually your GitHub org/user name.
   projectName: 'tailchat', // Usually your repo name.
   themeConfig,
+  i18n: {
+    defaultLocale: 'en',
+    locales: ['en', 'zh-Hans'],
+  },
   presets: [['@docusaurus/preset-classic', presetClassicOptions]],
-  plugins: [require.resolve('docusaurus-plugin-image-zoom')],
+  plugins: [
+    require.resolve('docusaurus-plugin-image-zoom'),
+    require.resolve('docusaurus-plugin-less'),
+  ],
+  scripts: [
+    {
+      src: 'https://tianji.moonrailgun.com/tracker.js',
+      async: true,
+      defer: true,
+      'data-website-id': 'clo189w7r0003o65exm2pvdnp',
+    },
+  ],
 };

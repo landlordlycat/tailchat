@@ -7,6 +7,7 @@ import { OpenAppInfoProvider } from './context';
 import { CreateOpenApp } from '../modals/CreateOpenApp';
 import { ServiceChecker } from '../components/ServiceChecker';
 import { useOpenAppList } from './useOpenAppList';
+import { Translate } from '../translate';
 import './index.less';
 
 const OpenApiMainPanel: React.FC = React.memo(() => {
@@ -16,16 +17,16 @@ const OpenApiMainPanel: React.FC = React.memo(() => {
   const columns = useMemo(
     () => [
       {
-        title: '名称',
+        title: Translate.name,
         dataIndex: 'appName',
       },
       {
-        title: '操作',
+        title: Translate.operation,
         key: 'action',
         render: (_, record: OpenApp) => (
           <Space>
             <Button onClick={() => handleSetSelectedApp(record._id)}>
-              进入
+              {Translate.enter}
             </Button>
           </Space>
         ),
@@ -49,7 +50,11 @@ const OpenApiMainPanel: React.FC = React.memo(() => {
     <Loading spinning={loading} style={{ height: '100%' }}>
       <div className="plugin-openapi-main-panel">
         {appInfo ? (
-          <OpenAppInfoProvider appInfo={appInfo} refresh={refresh}>
+          <OpenAppInfoProvider
+            appInfo={appInfo}
+            onSelectApp={handleSetSelectedApp}
+            refresh={refresh}
+          >
             <AppInfo />
           </OpenAppInfoProvider>
         ) : (
@@ -59,7 +64,7 @@ const OpenApiMainPanel: React.FC = React.memo(() => {
               type="primary"
               onClick={handleCreateOpenApp}
             >
-              创建应用
+              {Translate.createApplication}
             </Button>
             <Table columns={columns} dataSource={allApps} pagination={false} />
           </>

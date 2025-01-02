@@ -18,6 +18,9 @@ import { BundleStatsWebpackPlugin } from 'bundle-stats-webpack-plugin';
 import { WebpackStatsViewerPlugin } from 'webpack-stats-viewer-plugin';
 import { buildWorkboxPlugin } from './workbox';
 import { RetryChunkLoadPlugin } from 'webpack-retry-chunk-load-plugin';
+import GenerateJsonPlugin from 'generate-json-webpack-plugin';
+import CssMinimizerPlugin from 'css-minimizer-webpack-plugin';
+import TerserPlugin from 'terser-webpack-plugin';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 require('dotenv').config();
@@ -39,6 +42,9 @@ declare module 'webpack' {
 
 const NODE_ENV = process.env.NODE_ENV ?? 'production';
 const PREF_REPORT = !!process.env.PREF_REPORT;
+const VERSION =
+  process.env.VERSION || `nightly-${dayjs().format('YYYYMMDDHHmm')}`;
+const SERVICE_URL = process.env.SERVICE_URL; // 如果不传则为当前服务，用于前后端分离的场景
 
 const isDev = NODE_ENV === 'development';
 const mode = isDev ? 'development' : 'production';
@@ -46,14 +52,11 @@ const mode = isDev ? 'development' : 'production';
 const plugins: Configuration['plugins'] = [
   new DefinePlugin({
     'process.env.NODE_ENV': JSON.stringify(NODE_ENV),
-    'process.env.SERVICE_URL': JSON.stringify(process.env.SERVICE_URL),
-    'process.env.VERSION': JSON.stringify(
-      process.env.VERSION || `nightly-${dayjs().format('YYYYMMDDHHmm')}`
-    ),
+    'process.env.SERVICE_URL': JSON.stringify(SERVICE_URL),
+    'process.env.VERSION': JSON.stringify(VERSION),
   }),
   new HtmlWebpackPlugin({
-    title: 'Tailchat',
-    inject: true,
+    inject: 'body',
     hash: false,
     favicon: path.resolve(ROOT_PATH, './assets/images/favicon.ico'),
     template: path.resolve(ROOT_PATH, './assets/template.html'),
@@ -78,6 +81,14 @@ const plugins: Configuration['plugins'] = [
         to: 'pwa.webmanifest',
       },
       {
+        from: path.resolve(ROOT_PATH, './assets/robots.txt'),
+        to: 'robots.txt',
+      },
+      {
+        from: path.resolve(ROOT_PATH, './assets/_redirects'),
+        to: './', // for netlify
+      },
+      {
         from: path.resolve(ROOT_PATH, './assets/images/logo/'),
         to: 'images/logo/',
       },
@@ -86,11 +97,20 @@ const plugins: Configuration['plugins'] = [
         to: 'images/avatar/',
       },
       {
+        from: path.resolve(ROOT_PATH, './assets/audio/'),
+        to: 'audio/',
+      },
+      {
         from: path.resolve(ROOT_PATH, '../../vercel.json'),
         to: 'vercel.json',
       },
     ],
   }) as any,
+  new GenerateJsonPlugin('tailchat.manifest', {
+    version: VERSION,
+    env: NODE_ENV,
+    serviceUrl: SERVICE_URL,
+  }),
   new MiniCssExtractPlugin({ filename: 'styles-[contenthash].css' }),
   new RetryChunkLoadPlugin({
     maxRetries: 2,
@@ -233,6 +253,12 @@ const config: Configuration = {
   },
   optimization: {
     splitChunks,
+    minimizer: [
+      new CssMinimizerPlugin(),
+      new TerserPlugin({
+        minify: TerserPlugin.esbuildMinify,
+      }),
+    ],
   },
   resolve: {
     extensions: ['.tsx', '.ts', '.js', '.css'],

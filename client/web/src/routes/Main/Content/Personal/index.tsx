@@ -1,3 +1,4 @@
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { useUserSessionPreference } from '@/hooks/useUserPreference';
 import { pluginCustomPanel } from '@/plugin/common';
 import React, { useEffect } from 'react';
@@ -8,12 +9,16 @@ import { PersonalConverse } from './Converse';
 import { FriendPanel } from './Friends';
 import { PluginsPanel } from './Plugins';
 import { PersonalSidebar } from './Sidebar';
+import { useGlobalConfigStore } from 'tailchat-shared';
 
 export const Personal: React.FC = React.memo(() => {
   const [lastVisitPanelUrl, setLastVisitPanelUrl] = useUserSessionPreference(
     'personLastVisitPanelUrl'
   );
   const location = useLocation();
+  const disablePluginStore = useGlobalConfigStore(
+    (state) => state.disablePluginStore
+  );
 
   useEffect(() => {
     setLastVisitPanelUrl(location.pathname);
@@ -23,7 +28,9 @@ export const Personal: React.FC = React.memo(() => {
     <PageContent data-tc-role="content-personal" sidebar={<PersonalSidebar />}>
       <Routes>
         <Route path="/friends" element={<FriendPanel />} />
-        <Route path="/plugins" element={<PluginsPanel />} />
+        {!disablePluginStore && (
+          <Route path="/plugins" element={<PluginsPanel />} />
+        )}
         <Route path="/converse/:converseId" element={<PersonalConverse />} />
         {pluginCustomPanel
           .filter((p) => p.position === 'personal')
@@ -31,7 +38,9 @@ export const Personal: React.FC = React.memo(() => {
             <Route
               key={p.name}
               path={`/custom/${p.name}`}
-              element={React.createElement(p.render)}
+              element={
+                <ErrorBoundary>{React.createElement(p.render)}</ErrorBoundary>
+              }
             />
           ))}
 

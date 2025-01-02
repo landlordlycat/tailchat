@@ -41,8 +41,14 @@ jobs:
         uses: docker/build-push-action@v2
         with:
           context: .
+          platforms: linux/amd64,linux/arm64
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-        env:
-          VERSION: docker-${{ steps.meta.outputs.tags }}
+          build-args: VERSION=docker-${{ steps.meta.outputs.tags }}
+      - name: Notify to Service
+        continue-on-error: true
+        uses: muinmomin/webhook-action@v1.0.0
+        with:
+          url: https://tailchat-nightly.moonrailgun.com/api/plugin:com.msgbyte.simplenotify/webhook/callback
+          data: '{"text": "The new docker images has been push, visit https://hub.docker.com/r/moonrailgun/tailchat/tags to learn more", "subscribeId": "${{ secrets.NOTIFY_SUB_ID}}"}'

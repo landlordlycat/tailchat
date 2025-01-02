@@ -1,5 +1,6 @@
 import randomString from 'crypto-random-string';
 import _ from 'lodash';
+import urlRegex from 'url-regex';
 
 /**
  * 返回电子邮箱的地址
@@ -34,6 +35,13 @@ export function isValidStr(str: unknown): str is string {
 }
 
 /**
+ * 判断是否是一个可用的url
+ */
+export function isValidUrl(str: unknown): str is string {
+  return typeof str == 'string' && urlRegex({ exact: true }).test(str);
+}
+
+/**
  * 检测一个地址是否是一个合法的资源地址
  */
 export function isValidStaticAssetsUrl(str: unknown): str is string {
@@ -64,5 +72,9 @@ export function sleep(ms: number): Promise<void> {
  * 检查url地址是否匹配
  */
 export function checkPathMatch(urlList: string[], url: string): boolean {
-  return urlList.includes(url.split('?')[0]);
+  const fuzzList = urlList.map((url) => url.replaceAll('/', '.'));
+  const fuzzUrl = url.split('?')[0].replaceAll('/', '.');
+
+  // 考虑到serviceName中间可能会有. 且注册的时候不可能把所有情况都列出来，因此进行模糊处理
+  return fuzzList.includes(fuzzUrl);
 }

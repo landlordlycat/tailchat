@@ -1,12 +1,15 @@
 import {
   getCachedRegistryPlugins,
   getStorage,
+  parseUrlStr,
   PluginManifest,
 } from 'tailchat-shared';
 import { initMiniStar, loadSinglePlugin } from 'mini-star';
 import _once from 'lodash/once';
 import { builtinPlugins } from './builtin';
 import { showPluginLoadError } from './showPluginLoadError';
+import { injectTailchatGlobalValue } from '@/utils/global-helper';
+import _uniqBy from 'lodash/uniqBy';
 
 class PluginManager {
   /**
@@ -18,14 +21,14 @@ class PluginManager {
    * 初始化插件
    */
   initPlugins = _once(async () => {
-    const installedPlugins = [
-      ...builtinPlugins,
-      ...(await this.getInstalledPlugins()),
-    ];
+    const installedPlugins = _uniqBy(
+      [...builtinPlugins, ...(await this.getInstalledPlugins())],
+      'name'
+    ); // 基于名称去重，确保不会重复安装插件
 
     const plugins = installedPlugins.map(({ name, url }) => ({
       name,
-      url,
+      url: parseUrlStr(url),
     }));
 
     const loadErrorPlugins = new Set<string>();
@@ -133,3 +136,7 @@ class PluginManager {
 }
 
 export const pluginManager = new PluginManager();
+injectTailchatGlobalValue(
+  'installPlugin',
+  pluginManager.installPlugin.bind(pluginManager)
+);

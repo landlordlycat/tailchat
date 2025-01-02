@@ -7,9 +7,13 @@ import {
   Routes,
 } from 'react-router-dom';
 import {
+  getLanguage,
+  parseUrlStr,
   sharedEvent,
   TcProvider,
+  useAsync,
   useColorScheme,
+  useGlobalConfigStore,
   useLanguage,
 } from 'tailchat-shared';
 import clsx from 'clsx';
@@ -25,6 +29,10 @@ import isElectron from 'is-electron';
 import { AppRouterApi } from './components/AppRouterApi';
 import { DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
+import { ErrorBoundary } from './components/ErrorBoundary';
+import enUS from 'antd/es/locale/en_US';
+import type { Locale } from 'antd/es/locale-provider';
+import { useInjectTianjiScript } from './hooks/useInjectTianjiScript';
 
 const AppRouter: any = isElectron() ? HashRouter : BrowserRouter;
 
@@ -52,15 +60,34 @@ const InviteRoute = Loadable(
     )
 );
 
+export const TcAntdProvider: React.FC<PropsWithChildren> = React.memo(
+  (props) => {
+    const { value: locale } = useAsync(async (): Promise<Locale> => {
+      const language = getLanguage();
+
+      if (language === 'zh-CN') {
+        return import('antd/es/locale/zh_CN').then((m) => m.default);
+      }
+
+      return enUS;
+    }, []);
+
+    return (
+      <AntdProvider getPopupContainer={getPopupContainer} locale={locale}>
+        {props.children}
+      </AntdProvider>
+    );
+  }
+);
+TcAntdProvider.displayName = 'TcAntdProvider';
+
 const AppProvider: React.FC<PropsWithChildren> = React.memo((props) => {
   return (
     <Suspense fallback={<LoadingSpinner />}>
       <AppRouter>
         <TcProvider>
           <DndProvider backend={HTML5Backend}>
-            <AntdProvider getPopupContainer={getPopupContainer}>
-              {props.children}
-            </AntdProvider>
+            <TcAntdProvider>{props.children}</TcAntdProvider>
           </DndProvider>
         </TcProvider>
       </AppRouter>
@@ -93,10 +120,25 @@ AppContainer.displayName = 'AppContainer';
 
 const AppHeader: React.FC = React.memo(() => {
   const { language } = useLanguage();
+  const { serverName, serverEntryImage } = useGlobalConfigStore((state) => ({
+    serverName: state.serverName,
+    serverEntryImage: state.serverEntryImage,
+  }));
 
   return (
     <Helmet>
       <meta httpEquiv="Content-Language" content={language} />
+      <title>{serverName}</title>
+
+      {serverEntryImage && (
+        <style type="text/css">
+          {`
+              #tailchat-app {
+                --tc-background-image: url(${parseUrlStr(serverEntryImage)});
+              }
+            `}
+        </style>
+      )}
     </Helmet>
   );
 });
@@ -104,6 +146,8 @@ AppHeader.displayName = 'AppHeader';
 
 export const App: React.FC = React.memo(() => {
   useRecordMeasure('appRenderStart');
+
+  useInjectTianjiScript();
 
   useEffect(() => {
     sharedEvent.emit('appLoaded');
@@ -114,36 +158,42 @@ export const App: React.FC = React.memo(() => {
       <AppHeader />
       <AppContainer>
         <AppRouterApi />
-        <Routes>
-          <Route
-            path="/entry/*"
-            element={
-              <FallbackPortalHost>
-                <EntryRoute />
-              </FallbackPortalHost>
-            }
-          />
-          <Route path="/main/*" element={<MainRoute />} />
-          <Route path="/panel/*" element={<PanelRoute />} />
-          <Route path="/invite/:inviteCode" element={<InviteRoute />} />
-          <Route
-            path="/plugin/*"
-            element={
-              <FallbackPortalHost>
-                {pluginRootRoute.map((r, i) => (
-                  // NOTICE: Switch里不能出现动态路由
-                  <Route
-                    key={r.name}
-                    path={r.path ? `/plugin${r.path}` : `/plugin/fallback${i}`}
-                    element={React.createElement(r.component)}
-                  />
-                ))}
-              </FallbackPortalHost>
-            }
-          />
+        <ErrorBoundary>
+          <Routes>
+            <Route
+              path="/entry/*"
+              element={
+                <FallbackPortalHost>
+                  <EntryRoute />
+                </FallbackPortalHost>
+              }
+            />
+            <Route path="/main/*" element={<MainRoute />} />
+            <Route path="/panel/*" element={<PanelRoute />} />
+            <Route path="/invite/:inviteCode" element={<InviteRoute />} />
+            <Route
+              path="/plugin/*"
+              element={
+                <FallbackPortalHost>
+                  <Routes>
+                    {pluginRootRoute.map((r, i) => (
+                      <Route
+                        key={r.name}
+                        path={r.path ?? `/fallback${i}`}
+                        element={React.createElement(r.component)}
+                      />
+                    ))}
+                  </Routes>
+                </FallbackPortalHost>
+              }
+            />
 
-          <Route path="/*" element={<Navigate to="/entry" replace={true} />} />
-        </Routes>
+            <Route
+              path="/*"
+              element={<Navigate to="/entry" replace={true} />}
+            />
+          </Routes>
+        </ErrorBoundary>
       </AppContainer>
     </AppProvider>
   );

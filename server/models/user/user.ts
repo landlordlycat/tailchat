@@ -5,14 +5,13 @@ import {
   ReturnModelType,
   modelOptions,
   Severity,
+  index,
 } from '@typegoose/typegoose';
 import { Base, TimeStamps } from '@typegoose/typegoose/lib/defaultClasses';
 import type { Types } from 'mongoose';
+import { UserType, userType } from 'tailchat-server-sdk';
 
 type BaseUserInfo = Pick<User, 'nickname' | 'discriminator' | 'avatar'>;
-
-const userType = ['normalUser', 'pluginBot', 'openapiBot'];
-type UserType = typeof userType[number];
 
 /**
  * 用户设置
@@ -34,6 +33,7 @@ export interface UserLoginRes extends User {
     allowMixed: Severity.ALLOW,
   },
 })
+@index({ avatar: 1 })
 export class User extends TimeStamps implements Base {
   _id: Types.ObjectId;
   id: string;
@@ -107,6 +107,14 @@ export class User extends TimeStamps implements Base {
     default: false,
   })
   emailVerified: boolean;
+
+  /**
+   * 是否被封禁
+   */
+  @prop({
+    default: false,
+  })
+  banned: boolean;
 
   /**
    * 用户的额外信息

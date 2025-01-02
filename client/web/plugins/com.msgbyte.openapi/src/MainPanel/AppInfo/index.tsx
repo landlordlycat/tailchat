@@ -1,47 +1,69 @@
 import React, { useMemo } from 'react';
-import { SidebarView } from '@capital/component';
-import { Loadable } from '@capital/common';
+import { Icon, SidebarView } from '@capital/component';
+import { Loadable, useEvent } from '@capital/common';
 import { useOpenAppInfo } from '../context';
+import { Translate } from '../../translate';
+import styled from 'styled-components';
 import './index.less';
 
-const Summary = Loadable(() => import('./Summary'));
+const MenuTitle = styled.div`
+  display: flex;
+
+  .iconify {
+    margin-right: 4px;
+    font-size: 16px;
+    cursor: pointer;
+  }
+`;
+
+// const Summary = Loadable(() => import('./Summary'));
 const Profile = Loadable(() => import('./Profile'));
 const Bot = Loadable(() => import('./Bot'));
 const Webpage = Loadable(() => import('./Webpage'));
 const OAuth = Loadable(() => import('./OAuth'));
 
 const AppInfo: React.FC = React.memo(() => {
-  const { appName } = useOpenAppInfo();
+  const { appName, onSelectApp } = useOpenAppInfo();
+
+  const handleBack = useEvent(() => {
+    onSelectApp(null);
+  });
 
   const menu = useMemo(
     () => [
       {
         type: 'group',
-        title: appName,
+        title: (
+          <MenuTitle>
+            <Icon icon="mdi:arrow-left" onClick={handleBack} /> {appName}
+          </MenuTitle>
+        ),
         children: [
+          // {
+          //   type: 'item',
+          //   title: '总览',
+          //   content: <Summary />,
+          //   isDev: true,
+          // },
           {
             type: 'item',
-            title: '总览',
-            content: <Summary />,
-          },
-          {
-            type: 'item',
-            title: '基础信息',
+            title: Translate.app.basicInfo,
             content: <Profile />,
           },
           {
             type: 'item',
-            title: '机器人',
+            title: Translate.app.bot,
             content: <Bot />,
           },
           {
             type: 'item',
-            title: '网页',
+            title: Translate.app.webpage,
             content: <Webpage />,
+            isDev: true,
           },
           {
             type: 'item',
-            title: '应用登录',
+            title: Translate.app.oauth,
             content: <OAuth />,
           },
         ],

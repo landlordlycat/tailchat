@@ -1,75 +1,90 @@
 ---
 sidebar_position: 1
-title: 概述
+title: Summary
 ---
 
-`Tailchat` 是一款插件化易拓展的开源 IM 应用。可拓展架构赋予 `Tailchat` 无限可能性。
+`Tailchat` is an open source IM application that is pluggable and easy to expand. Plugin architecture gives `Tailchat` unlimited possibilities.
 
-前端微内核架构 + 后端微服务架构 使得 `Tailchat` 能够驾驭任何定制化/私有化的场景
+Front-end micro-kernel architecture + back-end micro-service architecture makes `Tailchat` to control any customized/privatized scenarios
 
-## 特性
+Created for enterprises and private domain users, highly free group management and customized panel display allow private domain owners to better display their works, manage users, and build their own brand and circle.
 
-- 完整的即时通讯基础能力
-- 插件化架构的赋予的自由拓展能力
-- 微服务架构赋予的水平拓展能力
+## Feature
 
-## 技术栈
+- Complete basic ability of instant messaging
+- The free expansion ability endowed by the plugin architecture
+- The horizontal expansion capability endowed by the microservice architecture
 
-- 前端
+## Highlight
+
+- The front-end micro-kernel architecture based on [mini-star](https://ministar.moonrailgun.com/) and the back-end micro-service architecture based on [moleculer](https://moleculer.services/) can adapt to various user usage, easy to expand
+- A complete chat system that supports various syntaxes such as mentions, panel jumps, rich text, markdown, url links, etc.
+- Message reaction mechanism, allowing you to express yourself through expressions
+- File sharing and image sending
+- Support voice calls and video calls
+- Perfect identity group management, RBAC
+- User Management and User Muting
+- Email authentication and password retrieval
+- Various panels: web page embedding, custom html, topic panel
+- Simple message push and github notification subscription
+- Admin platform
+- Openapi platform
+  - Bot
+  - OAuth
+- More wonderful chemical reactions brought by plugins
+  - custom theme
+  - listen to music online
+  - message encryption
+  - fetch link metadata
+  - Airdrop
+  - Task
+  - Draw
+  - Font size
+  - Toolbox
+  - ...
+
+## Technology Stack
+
+- Frontend
   - `React`
   - `Redux`
-  - `MiniStar`
+  - `mini-star`
   - `tailwindcss`
   - `iconify`
-- 后端
+- Backend
   - `Nodejs`
   - `Socket.io`
   - `koa`
   - `moleculer`
 
-## 功能列表
+## Screenshot
 
-- 用户管理
-  - 基于4位数字标识(战网like)的用户名系统
-  - 好友管理
-- 聊天系统
-  - 私聊
-  - 群聊
-  - 富文本消息
-    - 图片
-    - 链接
-    - 提及(@)
-    - 代码
-- 插件系统
-  - 前端插件系统(基于`ministar`的微内核架构)
-    - 自定义主题
-    - 自定义面板
-    - 自定义操作
-    - 消息内容转换
-    - ...
-  - 后端插件系统(基于`moleculer`的微服务架构)
-- 开放平台
-  - Connect ID
-  - *(其他正在开发中)*
-- 快速跳转
+#### Overview
 
+![](/img/intro/hello.png)
 
-## 截图
-
-#### 插件中心
+#### Plugin Center
 
 ![](/img/intro/plugins.png)
 
-#### 各类主题
+#### Themes
 
 ![](/img/intro/theme.png)
 
-#### Github订阅机器人
+#### Roles & Permission
+
+![](/img/intro/roles.png)
+
+#### Github Subscription Bot
 
 ![](/img/intro/github-bot.png)
 
-## 开源协议
+#### Admin
 
-开源协议请主要参考以下文档:
+![](/img/intro/admin-network.png)
+
+## Open Source Agreement
+
+For open source agreements, please mainly refer to the following documents:
 
 [Apache 2.0](https://github.com/msgbyte/tailchat/blob/master/LICENSE)

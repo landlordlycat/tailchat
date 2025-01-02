@@ -1,9 +1,19 @@
 import _ from 'lodash';
-import { TcService, TcPureContext, config } from 'tailchat-server-sdk';
+import {
+  TcService,
+  TcPureContext,
+  config,
+  TcDbService,
+  TcContext,
+} from 'tailchat-server-sdk';
+import type { ConfigDocument, ConfigModel } from '../../models/config';
 
 /**
  * 配置服务器
  */
+interface ConfigService
+  extends TcService,
+    TcDbService<ConfigDocument, ConfigModel> {}
 class ConfigService extends TcService {
   config = {}; // 自管理的配置项，globalConfig是同步过来的
 
@@ -12,12 +22,20 @@ class ConfigService extends TcService {
   }
 
   onInit(): void {
-    /**
-     * 全局配置
-     *
-     * 用于提供给前端使用
-     */
-    this.registerAction('client', this.client);
+    this.registerLocalDb(require('../../models/config').default);
+    this.registerAction('client', this.client, {
+      cache: {
+        keys: [],
+        ttl: 24 * 60 * 60, // 1 day
+      },
+    });
+    this.registerAction('setClientConfig', this.setClientConfig, {
+      params: {
+        key: 'string',
+        value: 'any',
+      },
+      visibility: 'public',
+    });
     this.registerAction('all', this.all, {
       visibility: 'public',
     });
@@ -43,29 +61,65 @@ class ConfigService extends TcService {
     });
 
     this.registerAuthWhitelist(['/client']);
+    if (config.env === 'development') {
+      this.cleanActionCache('client'); // 初始化时清理缓存
+    }
   }
 
   /**
    * 全局配置
    *
-   * 用于提供给前端使用d
+   * 用于提供给前端使用
+   *
+   * NOTICE: 返回内容比较简单，因此不建议增加缓存
    */
   async client(ctx: TcPureContext) {
+    const persistConfig = await this.adapter.model.getAllClientPersistConfig();
+
     return {
+      tianji: config.tianji,
       uploadFileLimit: config.storage.limit,
       emailVerification: config.emailVerification,
+      disableMsgpack: config.feature.disableMsgpack,
+      disableUserRegister: config.feature.disableUserRegister,
+      disableGuestLogin: config.feature.disableGuestLogin,
+      disableCreateGroup: config.feature.disableCreateGroup,
+      disablePluginStore: config.feature.disablePluginStore,
+      disableAddFriend: config.feature.disableAddFriend,
+      disableTelemetry: config.feature.disableTelemetry,
+      ...persistConfig,
     };
   }
 
-  async all(ctx: TcPureContext) {
+  /**
+   * set client config in tailchat network
+   *
+   * usually call from admin
+   */
+  async setClientConfig(
+    ctx: TcContext<{
+      key: string;
+      value: any;
+    }>
+  ) {
+    const { key, value } = ctx.params;
+    const newConfig = await this.adapter.model.setClientPersistConfig(
+      key,
+      value
+    );
+    await this.cleanActionCache('client', []);
+    this.broadcastNotify(ctx, 'updateClientConfig', newConfig);
+  }
+
+  async all(ctx: TcContext) {
     return this.config;
   }
 
-  async get(ctx: TcPureContext<{ key: string }>) {
+  async get(ctx: TcContext<{ key: string }>) {
     return this.config[ctx.params.key] ?? null;
   }
 
-  async set(ctx: TcPureContext<{ key: string; value: any }>) {
+  async set(ctx: TcContext<{ key: string; value: any }>) {
     const { key, value } = ctx.params;
 
     _.set(this.config, key, value);
@@ -75,7 +129,7 @@ class ConfigService extends TcService {
   /**
    * 添加到设置但不重复
    */
-  async addToSet(ctx: TcPureContext<{ key: string; value: any }>) {
+  async addToSet(ctx: TcContext<{ key: string; value: any }>) {
     const { key, value } = ctx.params;
 
     const originConfig = _.get(this.config, key) ?? [];

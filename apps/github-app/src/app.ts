@@ -1,7 +1,14 @@
-import { Probot } from 'probot';
+import { ApplicationFunction, Probot } from 'probot';
 import metadata from 'probot-metadata';
 import { TailchatClient } from './client';
-import { configPath, generateErrorBlock } from './utils';
+import {
+  configPath,
+  generateErrorBlock,
+  generateTopicCommentCreateContent,
+  generateTopicCreateContent,
+} from './utils';
+import bodyParser from 'body-parser';
+import _ from 'lodash';
 import * as dotenv from 'dotenv'; // see https://github.com/motdotla/dotenv#how-do-i-use-dotenv-with-import
 dotenv.config();
 
@@ -21,8 +28,10 @@ if (
 const defaultTailchatApiUrl = process.env.TAILCHAT_API_URL;
 const tailchatAppId = process.env.TAILCHAT_APP_ID;
 const tailchatAppSecret = process.env.TAILCHAT_APP_SECRET;
+const tailchatWebUrl =
+  process.env.TAILCHAT_WEB_URL || process.env.TAILCHAT_API_URL;
 
-export function app(app: Probot) {
+export const appFn: ApplicationFunction = (app, { getRouter }) => {
   app.on('issues.opened', async (ctx) => {
     if (ctx.isBot) {
       return;
@@ -52,12 +61,15 @@ export function app(app: Probot) {
         {
           groupId,
           panelId,
-          content: `[b]${
-            ctx.payload.issue.user.login
-          }[/b] create Issue:\n\nTitle: ${ctx.payload.issue.title}\n[markdown]${
-            ctx.payload.issue.body ?? ''
-          }[/markdown]\n\nWebsite: ${ctx.payload.issue.html_url}`,
+          content: generateTopicCreateContent(
+            ctx.payload.issue.user.login,
+            ctx.payload.issue.title,
+            ctx.payload.issue.body ?? '',
+            ctx.payload.issue.html_url
+          ),
           meta: {
+            tailchatHost: tailchatClient.url,
+            installationId: ctx.payload.installation?.id,
             githubRepoOwner: ctx.payload.repository.owner.login,
             githubRepoName: ctx.payload.repository.name,
             githubIssueNumber: ctx.payload.issue.number,
@@ -70,7 +82,7 @@ export function app(app: Probot) {
       await Promise.all([
         ctx.octokit.issues.createComment(
           ctx.issue({
-            body: 'Thanks for opening this issue! Tailchat topic is created!',
+            body: `Thanks for opening this issue! Tailchat topic is created in ${tailchatWebUrl}/main/group/${groupId}/${panelId}!`,
           })
         ),
         ctx.octokit.issues.addLabels(
@@ -128,11 +140,11 @@ export function app(app: Probot) {
         groupId,
         panelId,
         topicId,
-        content: `[b]${
-          ctx.payload.comment.user.login
-        }[/b] reply Issue:\n\n[markdown]${
-          ctx.payload.comment.body ?? ''
-        }[/markdown]\n\nWebsite: ${ctx.payload.comment.html_url}`,
+        content: generateTopicCommentCreateContent(
+          ctx.payload.comment.user.login,
+          ctx.payload.comment.body ?? '',
+          ctx.payload.comment.html_url
+        ),
       });
     } catch (err) {
       console.error(err);
@@ -156,15 +168,19 @@ export function app(app: Probot) {
   //     installationTargetRepositories,
   //   });
   // });
-}
+
+  buildRouter(app, getRouter);
+};
 
 /**
  * 从配置文件中创建上下文
+ *
+ * 因为考虑serverless服务因此不能全局管理
  */
 function createTailchatContextWithConfig(githubRaw: string) {
   const content = Buffer.from(githubRaw, 'base64').toString();
   const json = JSON.parse(content);
-  const tailchatHost = json['tailchatHost'];
+  const tailchatHost = json['tailchatHost'] ?? defaultTailchatApiUrl;
   const groupId = json['groupId'];
   const panelId = json['panelId'];
 
@@ -172,15 +188,94 @@ function createTailchatContextWithConfig(githubRaw: string) {
     throw new Error('config format error');
   }
 
-  const tailchatClient = new TailchatClient(
-    tailchatHost ?? defaultTailchatApiUrl,
-    tailchatAppId,
-    tailchatAppSecret
-  );
+  const tailchatClient = createTailchatClient(tailchatHost);
 
   return {
     tailchatClient,
     groupId,
     panelId,
   };
+}
+
+function createTailchatClient(tailchatHost = defaultTailchatApiUrl) {
+  const tailchatClient = new TailchatClient(
+    tailchatHost,
+    tailchatAppId,
+    tailchatAppSecret
+  );
+
+  return tailchatClient;
+}
+
+export function buildRouter(
+  app: Probot,
+  getRouter: Parameters<ApplicationFunction>[1]['getRouter']
+) {
+  if (getRouter) {
+    getRouter('/')
+      .get('/api', (_req, res) => {
+        res.send('Hello World! Github app api server is working!');
+      })
+      .get('/api/message/webhook', (_req, res) => {
+        res.send('Please use POST method');
+      })
+      .post('/api/message/webhook', bodyParser.json(), (req, res) => {
+        (async () => {
+          try {
+            // 根据收件箱内容向 Github Issue 创建话题
+            const inboxItem = req.body ?? {};
+            if (inboxItem.type !== 'plugin:com.msgbyte.topic.comment') {
+              // 如果不是回复消息，则跳过
+              return;
+            }
+
+            const newComment: any =
+              _.last(_.get(inboxItem, ['payload', 'comments'])) ?? {};
+            const meta = _.get(inboxItem, ['payload', 'meta']) ?? {};
+            if (
+              !meta.installationId ||
+              !meta.githubRepoOwner ||
+              !meta.githubRepoName ||
+              !meta.githubIssueNumber
+            ) {
+              console.warn('Cannot pass meta info check:', { meta });
+              return;
+            }
+            if (!newComment.author || !newComment.content) {
+              console.warn(
+                'Cannot get "newComment.author" or "newComment.content"'
+              );
+              return;
+            }
+
+            // 发送到github comment
+            const octokit = await app.auth(Number(meta.installationId));
+            const tailchatClient = createTailchatClient(meta.tailchatHost);
+            const userInfo = await tailchatClient.call('user.getUserInfo', {
+              userId: newComment.author,
+            });
+
+            const payload = {
+              owner: meta.githubRepoOwner,
+              repo: meta.githubRepoName,
+              issue_number: meta.githubIssueNumber,
+              body: `[${_.get(userInfo, [
+                'data',
+                'nickname',
+              ])}] 在 Tailchat 回复:\n\`\`\`\n${
+                newComment.content ?? ''
+              }\n\`\`\``,
+            };
+
+            console.log('正在向Github Issue创建回复:', payload);
+
+            await octokit.issues.createComment(payload);
+          } catch (err) {
+            console.error(err);
+          }
+        })();
+
+        res.send('Success!');
+      });
+  }
 }

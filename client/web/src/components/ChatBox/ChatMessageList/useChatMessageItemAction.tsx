@@ -4,12 +4,15 @@ import React, { useCallback } from 'react';
 import {
   ChatMessage,
   deleteMessage,
+  PERMISSION,
   recallMessage,
   sharedEvent,
+  showSuccessToasts,
   t,
   useAsyncRequest,
   useChatBoxContext,
   useGroupInfoContext,
+  useHasGroupPermission,
   useUserInfo,
 } from 'tailchat-shared';
 import { openReconfirmModalP } from '@/components/Modal';
@@ -27,20 +30,35 @@ export function useChatMessageItemAction(
   const context = useChatBoxContext();
   const groupInfo = useGroupInfoContext();
   const userInfo = useUserInfo();
+  const [hasDeleteMessagePermission] = useHasGroupPermission(
+    groupInfo?._id ?? '',
+    [PERMISSION.core.deleteMessage]
+  );
 
   const handleCopy = useCallback(() => {
+    const selection = window.getSelection();
+    if (selection && selection.toString().length > 0) {
+      // 复制选中的文本
+      copy(selection.toString());
+      showSuccessToasts(t('复制选中文本成功'));
+      return;
+    }
+
     copy(getMessageTextDecorators().serialize(payload.content));
+    showSuccessToasts(t('复制消息文本成功'));
   }, [payload.content]);
 
   const [, handleRecallMessage] = useAsyncRequest(async () => {
     if (await openReconfirmModalP()) {
       await recallMessage(payload._id);
+      showSuccessToasts(t('消息撤回成功'));
     }
   }, [payload._id]);
 
   const [, handleDeleteMessage] = useAsyncRequest(async () => {
     if (await openReconfirmModalP()) {
       await deleteMessage(payload._id);
+      showSuccessToasts(t('消息删除成功'));
     }
   }, [payload._id]);
 
@@ -68,7 +86,7 @@ export function useChatMessageItemAction(
         icon: <Icon icon="mdi:restore" />,
         onClick: handleRecallMessage,
       },
-      isGroupOwner && {
+      hasDeleteMessagePermission && {
         key: 'delete',
         label: t('删除'),
         danger: true,

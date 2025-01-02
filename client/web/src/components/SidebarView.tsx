@@ -148,7 +148,7 @@ export const SidebarView: React.FC<SidebarViewProps> = React.memo((props) => {
     <SidebarViewContext.Provider value={{ content, setContent }}>
       <div className="flex w-full h-full mobile:flex-col mobile:overflow-auto">
         <div
-          className="bg-black bg-opacity-10 flex flex-col justify-start items-end py-20 px-2.5 mobile:items-start mobile:py-10"
+          className="bg-black bg-opacity-10 flex flex-col justify-start items-end py-20 px-2.5 mobile:items-start mobile:py-10 text-sm"
           style={{ flex: '1 0 218px' }}
         >
           {menu.map((item, i) => (
@@ -157,7 +157,7 @@ export const SidebarView: React.FC<SidebarViewProps> = React.memo((props) => {
         </div>
 
         <div
-          className="pt-24 pb-20 px-10 desktop:overflow-auto"
+          className="pt-24 pb-20 px-10 mobile:pt-10 mobile:px-2 desktop:overflow-auto"
           style={{ flex: '1 1 800px' }}
         >
           {content}

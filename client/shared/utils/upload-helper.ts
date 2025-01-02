@@ -5,7 +5,10 @@ import { getGlobalConfig } from '../model/config';
 import { showErrorToasts } from '../manager/ui';
 import filesize from 'filesize';
 
+export type UploadFileUsage = 'chat' | 'group' | 'user' | 'unknown';
+
 interface UploadFileOptions {
+  usage?: UploadFileUsage;
   onProgress?: (percent: number, progressEvent: unknown) => void;
 }
 export interface UploadFileResult {
@@ -23,6 +26,7 @@ export async function uploadFile(
 ): Promise<UploadFileResult> {
   const form = new FormData();
   form.append('file', file);
+  form.append('usage', options.usage ?? 'unknown');
 
   const uploadFileLimit = getGlobalConfig().uploadFileLimit;
   if (file.size > uploadFileLimit) {
@@ -51,7 +55,7 @@ export async function uploadFile(
 
     return data;
   } catch (e) {
-    showToasts(`${t('上传失败')}: ${t('可能是图片体积过大')}`, 'error');
+    showToasts(`${t('上传失败')}: ${t('可能是文件体积过大')}`, 'error');
     console.error(`${t('上传失败')}: ${_get(e, 'message')}`);
     throw e;
   }

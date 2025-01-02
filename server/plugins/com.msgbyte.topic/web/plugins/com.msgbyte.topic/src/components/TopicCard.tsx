@@ -4,8 +4,17 @@ import {
   showMessageTime,
   showSuccessToasts,
   useAsyncRequest,
+  useCurrentUserInfo,
+  useGroupInfo,
 } from '@capital/common';
-import { IconBtn, Input, UserName, UserAvatar } from '@capital/component';
+import {
+  IconBtn,
+  TextArea,
+  UserName,
+  UserAvatar,
+  MessageAckContainer,
+  Popconfirm,
+} from '@capital/component';
 import styled from 'styled-components';
 import type { GroupTopic } from '../types';
 import { Translate } from '../translate';
@@ -32,7 +41,7 @@ const Root = styled.div`
     flex: 1;
     user-select: text;
 
-    .header {·
+    .header {
       display: flex;
       line-height: 32px;
 
@@ -50,6 +59,11 @@ const Root = styled.div`
         margin-top: 6px;
         margin-bottom: 6px;
       }
+    }
+
+    .footer {
+      display: flex;
+      gap: 4px;
     }
   }
 `;
@@ -70,6 +84,9 @@ export const TopicCard: React.FC<{
   const topic: Partial<GroupTopic> = props.topic ?? {};
   const [showReply, toggleShowReply] = useReducer((state) => !state, false);
   const [comment, setComment] = useState('');
+  const groupInfo = useGroupInfo(topic.groupId);
+  const groupOwnerId = groupInfo?.owner;
+  const userId = useCurrentUserInfo()._id;
 
   const [{ loading }, handleComment] = useAsyncRequest(async () => {
     await request.post('createComment', {
@@ -84,50 +101,72 @@ export const TopicCard: React.FC<{
     showSuccessToasts();
   }, [topic.groupId, topic.panelId, topic._id, comment]);
 
-  return (
-    <Root>
-      <div className="left">
-        <UserAvatar userId={topic.author} />
-      </div>
+  const [, handleDeleteTopic] = useAsyncRequest(async () => {
+    await request.post('delete', {
+      groupId: topic.groupId,
+      panelId: topic.panelId,
+      topicId: topic._id,
+    });
+  }, []);
 
-      <div className="right">
-        <div className="header">
-          <div className="name">
-            <UserName userId={topic.author} />
-          </div>
-          <div className="date">{showMessageTime(topic.createdAt)}</div>
+  return (
+    <MessageAckContainer converseId={topic.panelId} messageId={topic._id}>
+      <Root>
+        <div className="left">
+          <UserAvatar userId={topic.author} />
         </div>
 
-        <div className="body">
-          <div className="content">{getMessageRender(topic.content)}</div>
+        <div className="right">
+          <div className="header">
+            <div className="name">
+              <UserName userId={topic.author} />
+            </div>
+            <div className="date">{showMessageTime(topic.createdAt)}</div>
+          </div>
 
-          {Array.isArray(topic.comments) && topic.comments.length > 0 && (
-            <TopicComments comments={topic.comments} />
+          <div className="body">
+            <div className="content">{getMessageRender(topic.content)}</div>
+
+            {Array.isArray(topic.comments) && topic.comments.length > 0 && (
+              <TopicComments comments={topic.comments} />
+            )}
+          </div>
+
+          <div className="footer">
+            <IconBtn
+              title={Translate.reply}
+              icon="mdi:message-reply-text-outline"
+              onClick={toggleShowReply}
+            />
+
+            {userId === groupOwnerId && (
+              <Popconfirm
+                title={Translate.topicDeleteConfimTip}
+                onConfirm={handleDeleteTopic}
+              >
+                <IconBtn title={Translate.delete} icon="mdi:delete-outline" />
+              </Popconfirm>
+            )}
+          </div>
+
+          {showReply && (
+            <ReplyBox>
+              <TextArea
+                autoFocus
+                placeholder={Translate.replyThisTopic}
+                disabled={loading}
+                value={comment}
+                row={2}
+                maxLength={1000}
+                showCount={true}
+                onChange={(e) => setComment(e.target.value)}
+                onPressEnter={handleComment}
+              />
+            </ReplyBox>
           )}
         </div>
-
-        <div className="footer">
-          <IconBtn
-            title={Translate.reply}
-            icon="mdi:message-reply-text-outline"
-            onClick={toggleShowReply}
-          />
-        </div>
-
-        {showReply && (
-          <ReplyBox>
-            <Input
-              autoFocus
-              placeholder={Translate.replyThisTopic}
-              disabled={loading}
-              value={comment}
-              onChange={(e) => setComment(e.target.value)}
-              onPressEnter={handleComment}
-            />
-          </ReplyBox>
-        )}
-      </div>
-    </Root>
+      </Root>
+    </MessageAckContainer>
   );
 });
 TopicCard.displayName = 'TopicCard';

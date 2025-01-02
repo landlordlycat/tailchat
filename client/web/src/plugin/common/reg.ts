@@ -6,9 +6,17 @@ import {
   GroupPanel,
   regSocketEventListener,
   PermissionItemType,
+  GroupPanelFeature,
+  buildRegMap,
+  BasicInboxItem,
 } from 'tailchat-shared';
 import type { MetaFormFieldMeta } from 'tailchat-design';
 import type { FullModalFactoryConfig } from '@/components/FullModal/Factory';
+import type { ReactElement } from 'react';
+import type { BaseCardPayload } from '@/components/Card';
+import type { ChatInputPasteHandler } from '@/components/ChatBox/ChatInputBox/clipboard-helper';
+
+export type { BaseCardPayload };
 
 /**
  * 注册自定义面板
@@ -19,10 +27,16 @@ export interface PluginCustomPanel {
    *
    * - personal: 个人面板中的一项
    * - setting: 设置面板
-   * - navbar: 导航栏(未实装)
    * - groupdetail: 群组详情
+   * - navbar*: 导航栏
    */
-  position: 'personal' | 'setting' | 'navbar' | 'groupdetail';
+  position:
+    | 'personal'
+    | 'setting'
+    | 'groupdetail'
+    | 'navbar-more'
+    | 'navbar-group'
+    | 'navbar-personal';
 
   /**
    * Iconify 名
@@ -43,6 +57,16 @@ export interface PluginCustomPanel {
    * 渲染组件
    */
   render: React.ComponentType;
+
+  /**
+   * hooks determine navbar icon whether to render
+   *
+   * Only available in position: `navbar-more` | `navbar-group` | `navbar-personal`
+   *
+   * @default
+   * () => true
+   */
+  useIsShow?: () => boolean;
 }
 export const [pluginCustomPanel, regCustomPanel] =
   buildRegList<PluginCustomPanel>();
@@ -77,7 +101,7 @@ export interface PluginGroupPanel {
   /**
    * 额外的表单数据, 用于创建面板时使用
    */
-  extraFormMeta: MetaFormFieldMeta[];
+  extraFormMeta?: MetaFormFieldMeta[];
 
   /**
    * 该面板如何渲染
@@ -88,6 +112,11 @@ export interface PluginGroupPanel {
    * 面板项右键菜单
    */
   menus?: PluginPanelMenu[];
+
+  /**
+   * 面板功能特性
+   */
+  feature?: GroupPanelFeature[];
 }
 export const [pluginGroupPanel, regGroupPanel] =
   buildRegList<PluginGroupPanel>();
@@ -117,8 +146,15 @@ export const [getMessageRender, regMessageRender] = buildRegFn<
  * 输入消息，返回渲染节点
  */
 const defaultMessageTextDecorators = {
-  url: (url: string, label?: string) => url,
+  url: (url: string, label?: string) => (label ? `${label}(${url})` : url),
   image: (plain: string, attrs: Record<string, unknown>) => plain,
+  card: (
+    plain: string,
+    payload: {
+      type: string;
+      [other: string]: unknown;
+    }
+  ) => plain,
   mention: (userId: string, userName: string) => `@${userName}`,
   emoji: (emojiCode: string) => emojiCode,
   serialize: (plain: string) => plain,
@@ -141,6 +177,12 @@ interface ChatInputAction {
 export type { ChatInputActionContextProps };
 export const [pluginChatInputActions, regChatInputAction] =
   buildRegList<ChatInputAction>();
+
+interface ChatInputButton {
+  render: () => React.ReactElement;
+}
+export const [pluginChatInputButtons, regChatInputButton] =
+  buildRegList<ChatInputButton>();
 
 export { regSocketEventListener };
 
@@ -177,6 +219,15 @@ export const [pluginRootRoute, regPluginRootRoute] = buildRegList<{
   component: React.ComponentType;
 }>();
 
+/**
+ * 注册独立面板路由
+ */
+export const [pluginPanelRoute, regPluginPanelRoute] = buildRegList<{
+  name: string;
+  path: string;
+  component: React.ComponentType;
+}>();
+
 export interface BasePluginPanelActionProps {
   /**
    * 唯一标识
@@ -204,7 +255,7 @@ export interface DMPluginPanelActionProps extends BasePluginPanelActionProps {
 }
 
 /**
- * 注册面板操作
+ * 注册 面板操作 到面板右上角
  */
 export const [pluginPanelActions, regPluginPanelAction] = buildRegList<
   GroupPluginPanelActionProps | DMPluginPanelActionProps
@@ -221,7 +272,8 @@ export const [pluginPermission, regPluginPermission] =
  */
 export const [pluginGroupPanelBadges, regGroupPanelBadge] = buildRegList<{
   name: string;
-  render: (groupId: string, panelId: string) => React.ReactNode;
+  panelType: string;
+  render: React.ComponentType<{ groupId: string; panelId: string }>;
 }>();
 
 /**
@@ -256,7 +308,7 @@ interface PluginUserExtraInfo {
 export const [pluginUserExtraInfo, regUserExtraInfo] =
   buildRegList<PluginUserExtraInfo>();
 
-type PluginSettings = FullModalFactoryConfig & {
+export type PluginSettings = FullModalFactoryConfig & {
   position: 'system'; // 后面可能还会有个人设置/群组设置
 };
 
@@ -265,3 +317,50 @@ type PluginSettings = FullModalFactoryConfig & {
  */
 export const [pluginSettings, regPluginSettings] =
   buildRegList<PluginSettings>();
+
+interface PluginInboxItem {
+  /**
+   * 来源
+   */
+  source: string;
+  getPreview: (inboxItem: BasicInboxItem) => { title: string; desc: string };
+  render: React.ComponentType<{ inboxItem: BasicInboxItem }>;
+}
+
+/**
+ * 注册收件箱内容
+ */
+export const [pluginInboxItemMap, regPluginInboxItemMap] =
+  buildRegMap<PluginInboxItem>();
+
+interface PluginCardItem {
+  render: React.ComponentType<{ payload: BaseCardPayload }>;
+}
+
+/**
+ * 注册卡片类型
+ */
+export const [pluginCardItemMap, regPluginCardItem] =
+  buildRegMap<PluginCardItem>();
+
+export const [pluginGroupConfigItems, regPluginGroupConfigItem] = buildRegList<{
+  name: string;
+  title: string;
+  tip?: string;
+  component: (props: {
+    value: any;
+    onChange: (val: unknown) => void;
+    loading: boolean;
+  }) => ReactElement;
+}>();
+
+/**
+ * 注册登录操作
+ */
+export const [pluginLoginAction, regLoginAction] = buildRegList<{
+  name: string;
+  component: React.ComponentType;
+}>();
+
+export const [pluginChatInputPasteHandler, regChatInputPasteHandler] =
+  buildRegList<ChatInputPasteHandler>();

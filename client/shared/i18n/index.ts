@@ -9,7 +9,7 @@ import {
   initReactI18next,
 } from 'react-i18next';
 import { crc32 } from 'crc';
-import { languageDetector } from './language';
+import { defaultLanguage, languageDetector } from './language';
 import { useState, useEffect } from 'react';
 import HttpApi from 'i18next-http-backend'; // https://github.com/i18next/i18next-http-backend
 
@@ -23,13 +23,13 @@ i18next
   .use(HttpApi)
   .use(initReactI18next)
   .init({
-    fallbackLng: 'zh-CN',
+    fallbackLng: defaultLanguage,
     load: 'currentOnly',
     backend: {
       loadPath: '/locales/{{lng}}/{{ns}}.json',
       allowMultiLoading: false,
       addPath: (...args: any[]) => {
-        console.log('缺少翻译:', ...args);
+        console.log('Lost translate:', ...args);
       },
     },
     react: {
@@ -119,14 +119,23 @@ export async function setLanguage(lang: AllowedLanguage): Promise<void> {
 /**
  * 获取i18n语言
  */
-export function getLanguage(): string {
-  return i18next.language;
+export function getLanguage(): AllowedLanguage {
+  return i18next.language as AllowedLanguage;
+}
+
+/**
+ * 语言加载
+ */
+export function onLanguageLoaded(
+  cb: (loaded: { [language: string]: { [namespace: string]: boolean } }) => void
+) {
+  i18next.on('loaded', cb);
 }
 
 /**
  * 监听语言变更
  */
-export function onLanguageChange(cb: (lang: string) => void) {
+export function onLanguageChanged(cb: (lang: string) => void) {
   i18next.on('languageChanged', cb);
 }
 

@@ -4,15 +4,17 @@ import {
   GroupPanel,
   GroupPanelType,
   isValidStr,
+  PERMISSION,
   showToasts,
   t,
   useAppDispatch,
   useConverseAck,
   useGroupInfo,
+  useHasGroupPanelPermission,
   useUserNotifyMute,
 } from 'tailchat-shared';
 import { GroupPanelItem } from '@/components/GroupPanelItem';
-import { GroupTextPanelItem } from './TextPanelItem';
+import { GroupAckPanelItem } from './AckPanelItem';
 import { Dropdown, MenuProps } from 'antd';
 import copy from 'copy-to-clipboard';
 import { usePanelWindow } from '@/hooks/usePanelWindow';
@@ -20,6 +22,7 @@ import { LoadingSpinner } from '@/components/LoadingSpinner';
 import _compact from 'lodash/compact';
 import { Icon } from 'tailchat-design';
 import { useExtraMenuItems, useGroupPanelExtraBadge } from './utils';
+import { isGroupAckPanel } from '@/utils/group-helper';
 
 /**
  * 群组面板侧边栏组件
@@ -37,11 +40,22 @@ export const SidebarItem: React.FC<{
   const dispatch = useAppDispatch();
   const { markConverseAllAck } = useConverseAck(panelId);
   const extraMenuItems = useExtraMenuItems(panel);
-  const extraBadge = useGroupPanelExtraBadge(groupId, panelId);
+  const extraBadge = useGroupPanelExtraBadge(
+    groupId,
+    panelId,
+    panel.pluginPanelName ?? ''
+  );
   const { checkIsMuted, toggleMute } = useUserNotifyMute();
+  const [viewPanelPermission] = useHasGroupPanelPermission(groupId, panelId, [
+    PERMISSION.core.viewPanel,
+  ]);
 
   if (!groupInfo) {
     return <LoadingSpinner />;
+  }
+
+  if (!viewPanelPermission) {
+    return null;
   }
 
   const isPinned =
@@ -112,8 +126,8 @@ export const SidebarItem: React.FC<{
   return (
     <Dropdown menu={menu} trigger={['contextMenu']}>
       <div>
-        {panel.type === GroupPanelType.TEXT ? (
-          <GroupTextPanelItem icon={icon} groupId={groupId} panel={panel} />
+        {isGroupAckPanel(panel) ? (
+          <GroupAckPanelItem icon={icon} groupId={groupId} panel={panel} />
         ) : (
           <GroupPanelItem
             name={panel.name}

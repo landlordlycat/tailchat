@@ -2,7 +2,7 @@ import { FullModalFactory } from '@/components/FullModal/Factory';
 import { FullModalField } from '@/components/FullModal/Field';
 import { LanguageSelect } from '@/components/LanguageSelect';
 import { pluginColorScheme, pluginSettings } from '@/plugin/common';
-import { Select, Switch } from 'antd';
+import { Select, Switch, Button } from 'antd';
 import React from 'react';
 import {
   t,
@@ -42,13 +42,27 @@ export const SettingsSystem: React.FC = React.memo(() => {
         }
       />
 
+      <FullModalField
+        title={t('关闭消息右键菜单')}
+        content={
+          <Switch
+            checked={settings['disableMessageContextMenu'] ?? false}
+            onChange={(checked) =>
+              setSettings({
+                disableMessageContextMenu: checked,
+              })
+            }
+          />
+        }
+      />
+
       {pluginSettings
         .filter((item) => item.position === 'system')
         .map((item) => {
           return (
             <FullModalFactory
               key={item.name}
-              value={_get(settings, item.name, false)}
+              value={_get(settings, item.name, item.defaultValue ?? false)}
               onChange={(val) => {
                 setSettings({
                   [item.name]: val,
@@ -89,6 +103,9 @@ export const SettingsSystem: React.FC = React.memo(() => {
           }
         />
       )}
+      <Button type="primary" onClick={() => window.location.reload()}>
+        {t('重新加载')}
+      </Button>
     </div>
   );
 });

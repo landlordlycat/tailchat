@@ -1,6 +1,5 @@
-import { Avatar } from '@/components/Avatar';
 import { Highlight } from '@/components/Highlight';
-import { Button, Divider, Empty, Typography } from 'antd';
+import { Button, Divider, Typography } from 'antd';
 import {
   addFriendRequest,
   searchUserWithUniqueName,
@@ -14,6 +13,8 @@ import {
 } from 'tailchat-shared';
 import React, { useCallback, useState } from 'react';
 import _isNil from 'lodash/isNil';
+import { Avatar } from 'tailchat-design';
+import { NoData } from '@/components/NoData';
 
 const SearchFriendResult: React.FC<{
   result: UserBaseInfo | undefined | null;
@@ -34,7 +35,7 @@ const SearchFriendResult: React.FC<{
   }
 
   if (result === null) {
-    return <Empty />;
+    return <NoData />;
   }
 
   const hasSent = hasSentUserId === result._id;

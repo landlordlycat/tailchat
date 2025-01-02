@@ -6,6 +6,8 @@ import { useShallowObject } from 'tailchat-shared';
  * Input Actions
  */
 export interface ChatInputActionContextProps {
+  message: string;
+  setMessage: (msg: string) => void;
   sendMsg: (message: string) => void;
   appendMsg: (message: string) => void;
 }
@@ -13,7 +15,7 @@ export const ChatInputActionContext =
   React.createContext<ChatInputActionContextProps>(
     {} as ChatInputActionContextProps
   );
-ChatInputActionContext.displayName = 'ChatInputContext';
+ChatInputActionContext.displayName = 'ChatInputActionContext';
 
 export function useChatInputActionContext() {
   return useContext(ChatInputActionContext);
@@ -23,8 +25,8 @@ export function useChatInputActionContext() {
  * Input Mentions
  */
 interface ChatInputMentionsContextProps extends PropsWithChildren {
-  users: SuggestionDataItem[];
-  panels: SuggestionDataItem[];
+  users?: SuggestionDataItem[];
+  panels?: SuggestionDataItem[];
   placeholder?: string;
   disabled?: boolean;
 }

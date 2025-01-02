@@ -1,4 +1,5 @@
 import _get from 'lodash/get';
+import { parseUrlStr } from 'tailchat-shared';
 
 /**
  * 传入一个图片文件， 返回对应的 Base64 编码
@@ -87,21 +88,22 @@ export async function blobUrlToFile(
 }
 
 /**
- * 下载Bloburl
+ * 通过url下载文件
  */
-export async function downloadBlobUrl(blobUrl: string, fileName: string) {
+export function downloadUrl(url: string, fileName: string) {
   const a = document.createElement('a');
-  a.href = blobUrl;
+  a.href = parseUrlStr(url);
   a.download = fileName; // 这里填保存成的文件名
+  a.target = '_blank';
   a.click();
 }
 
 /**
  * 下载Blob文件
  */
-export async function downloadBlob(blob: Blob, fileName: string) {
+export function downloadBlob(blob: Blob, fileName: string) {
   const url = String(URL.createObjectURL(blob));
-  downloadBlobUrl(url, fileName);
+  downloadUrl(url, fileName);
   URL.revokeObjectURL(url);
 }
 
@@ -161,7 +163,11 @@ export async function compressImage(
       maxWidth: options?.maxWidth ?? 1920,
       maxHeight: options?.maxHeight ?? 1080,
       success(file) {
-        resolve(file as File);
+        if (file instanceof File) {
+          resolve(file);
+        } else {
+          resolve(new File([file], file.name));
+        }
       },
       error(err) {
         reject(err);

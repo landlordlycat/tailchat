@@ -1,6 +1,7 @@
 import { Avatar, AvatarProps } from '.';
 import React from 'react';
 import _take from 'lodash/take';
+import { px2rem } from './utils';
 import './combined.css';
 
 interface CombinedAvatarProps {
@@ -81,8 +82,8 @@ export const CombinedAvatar: React.FC<CombinedAvatarProps> = React.memo(
       <div
         className={`td-combined-avatar td-combined-avatar-${length}`}
         style={{
-          width: size,
-          height: size,
+          width: px2rem(size),
+          height: px2rem(size),
           borderRadius: shape === 'circle' ? '50%' : 3,
         }}
       >
@@ -95,6 +96,9 @@ export const CombinedAvatar: React.FC<CombinedAvatarProps> = React.memo(
             {...item}
           />
         ))}
+
+        {items.length >= 2 && <div className="line1" />}
+        {items.length >= 3 && <div className="line2" />}
       </div>
     );
   }

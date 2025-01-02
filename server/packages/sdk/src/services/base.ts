@@ -13,13 +13,17 @@ import {
 } from 'moleculer';
 import { once } from 'lodash';
 import { TcDbService } from './mixins/db.mixin';
-import type { PureContext, TcPureContext } from './types';
+import type { PanelFeature, PureContext, TcPureContext } from './types';
 import type { TFunction } from 'i18next';
 import { t } from './lib/i18n';
 import type { ValidationRuleObject } from 'fastest-validator';
 import type { BuiltinEventMap } from '../structs/events';
-import { CONFIG_GATEWAY_AFTER_HOOK } from '../const';
+import { CONFIG_GATEWAY_AFTER_HOOK, SYSTEM_USERID } from '../const';
 import _ from 'lodash';
+import {
+  decodeNoConflictServiceNameKey,
+  encodeNoConflictServiceNameKey,
+} from '../utils';
 
 type ServiceActionHandler<T = any> = (
   ctx: TcPureContext<any>
@@ -67,12 +71,13 @@ type ServiceActionSchema = Pick<
  */
 function generateAfterHookKey(actionName: string, serviceName = '') {
   if (serviceName) {
-    return `${CONFIG_GATEWAY_AFTER_HOOK}.${serviceName}.${actionName}`.replaceAll(
-      '.',
-      '-'
+    return encodeNoConflictServiceNameKey(
+      `${CONFIG_GATEWAY_AFTER_HOOK}.${serviceName}.${actionName}`
     );
   } else {
-    return `${CONFIG_GATEWAY_AFTER_HOOK}.${actionName}`.replaceAll('.', '-');
+    return encodeNoConflictServiceNameKey(
+      `${CONFIG_GATEWAY_AFTER_HOOK}.${actionName}`
+    );
   }
 }
 
@@ -174,7 +179,12 @@ export abstract class TcService extends Service {
             if (Array.isArray(afterHooks) && afterHooks.length > 0) {
               for (const action of afterHooks) {
                 // 异步调用, 暂时不修改值
-                ctx.call(String(action), ctx.params, { meta: ctx.meta });
+                ctx.call(String(action), ctx.params, {
+                  meta: {
+                    ...ctx.meta,
+                    actionResult: res,
+                  },
+                });
               }
             }
           } catch (err) {
@@ -185,6 +195,26 @@ export abstract class TcService extends Service {
         };
       }),
     };
+  }
+
+  /**
+   * 获取服务操作列表
+   */
+  getActionList() {
+    return Object.entries(this._actions).map(
+      ([name, schema]: [string, ServiceActionSchema]) => {
+        return {
+          name,
+          params: _.mapValues(schema.params, (type) => {
+            if (typeof type === 'string') {
+              return { type: type };
+            } else {
+              return type;
+            }
+          }),
+        };
+      }
+    );
   }
 
   registerMixin(mixin: Partial<ServiceSchema>): void {
@@ -310,6 +340,47 @@ export abstract class TcService extends Service {
   }
 
   /**
+   * 注册可用的action请求
+   *
+   * 传入检查函数, 函数的返回值作为结果
+   */
+  registerAvailableAction(checkFn: () => boolean) {
+    this.registerAction('available', checkFn);
+    this.registerAuthWhitelist(['/available']);
+  }
+
+  /**
+   * 注册面板功能特性，用于在服务端基础设施开放部分能力
+   * @param panelFeature 面板功能
+   */
+  async setPanelFeature(panelName: string, panelFeatures: PanelFeature[]) {
+    await this.setGlobalConfig(
+      `panelFeature.${encodeNoConflictServiceNameKey(panelName)}`,
+      panelFeatures
+    );
+  }
+
+  /**
+   * 获取拥有某些特性的面板列表
+   * @param panelFeature 面板功能
+   */
+  getPanelNamesWithFeature(panelFeature: PanelFeature) {
+    const map =
+      this.getGlobalConfig<Record<string, PanelFeature[]>>('panelFeature') ??
+      {};
+
+    const matched = Object.entries(map).filter(([name, features]) => {
+      if (Array.isArray(features)) {
+        return features.includes(panelFeature);
+      }
+
+      return false;
+    });
+
+    return matched.map((m) => decodeNoConflictServiceNameKey(m[0]));
+  }
+
+  /**
    * 等待微服务启动
    * @param serviceNames
    * @param timeout
@@ -334,7 +405,7 @@ export abstract class TcService extends Service {
     return super.waitForServices(serviceNames, timeout, interval, logger);
   }
 
-  getGlobalConfig(key: string): any {
+  getGlobalConfig<T = any>(key: string): T {
     return _.get(this.globalConfig, key);
   }
 
@@ -354,15 +425,14 @@ export abstract class TcService extends Service {
    * @param fullActionName 完整的带servicename的action名
    * @param callbackAction 当前服务的action名，不需要带servicename
    */
-  async registryAfterActionHook(
+  async registerAfterActionHook(
     fullActionName: string,
     callbackAction: string
   ) {
     await this.waitForServices(['gateway', 'config']);
     await this.broker.call('config.addToSet', {
-      key: `${CONFIG_GATEWAY_AFTER_HOOK}.${fullActionName}`.replaceAll(
-        '.',
-        '-'
+      key: encodeNoConflictServiceNameKey(
+        `${CONFIG_GATEWAY_AFTER_HOOK}.${fullActionName}`
       ),
       value: `${this.serviceName}.${callbackAction}`,
     });
@@ -373,9 +443,17 @@ export abstract class TcService extends Service {
    * NOTICE: 这里使用Redis作为缓存管理器，因此不需要通知所有的service
    */
   async cleanActionCache(actionName: string, keys: string[] = []) {
-    await this.broker.cacher.clean(
-      `${this.serviceName}.${actionName}:${keys.join('|')}**`
-    );
+    if (!this.broker.cacher) {
+      console.error('Can not clean cache because no cacher existed.');
+    }
+
+    if (keys.length === 0) {
+      await this.broker.cacher.clean(`${this.serviceName}.${actionName}`);
+    } else {
+      await this.broker.cacher.clean(
+        `${this.serviceName}.${actionName}:${keys.join('|')}**`
+      );
+    }
   }
 
   /**
@@ -395,6 +473,21 @@ export abstract class TcService extends Service {
     opts?: CallingOptions
   ): Promise<any> {
     return this.actions[actionName](params, opts);
+  }
+
+  protected systemCall<T>(
+    ctx: PureContext,
+    actionName: string,
+    params?: {},
+    opts?: CallingOptions
+  ): Promise<T> {
+    return ctx.call(actionName, params, {
+      ...opts,
+      meta: {
+        userId: SYSTEM_USERID,
+        ...(opts?.meta ?? {}),
+      },
+    });
   }
 
   private buildLoggerWithPrefix(_originLogger: LoggerInstance) {

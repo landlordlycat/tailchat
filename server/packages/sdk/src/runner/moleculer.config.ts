@@ -36,7 +36,7 @@ import 'moleculer-repl';
  *    }
  *  }
  */
-const brokerConfig: BrokerOptions = {
+export const defaultBrokerConfig: BrokerOptions = {
   // Namespace of nodes to segment your nodes on the same network.
   namespace: 'tailchat',
   // Unique node identifier. Must be unique in a namespace.
@@ -118,7 +118,7 @@ const brokerConfig: BrokerOptions = {
   serializer: 'JSON',
 
   // Number of milliseconds to wait before reject a request with a RequestTimeout error. Disabled: 0
-  requestTimeout: 10 * 1000,
+  requestTimeout: config.runner.requestTimeout,
 
   // Retry policy settings. More info: https://moleculer.services/docs/0.14/fault-tolerance.html#Retry
   retryPolicy: {
@@ -310,5 +310,3 @@ const brokerConfig: BrokerOptions = {
 	stopped: async (broker: ServiceBroker): Promise<void> => {},
 	 */
 };
-
-export default brokerConfig;

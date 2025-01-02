@@ -33,6 +33,11 @@ const Root = styled(LoadingOnFirst)({
     paddingTop: 80,
   },
 
+  '.list': {
+    height: '100%',
+    overflow: 'auto',
+  },
+
   '.create-btn': {
     position: 'absolute',
     right: 20,
@@ -53,6 +58,7 @@ const GroupTopicPanelRender: React.FC = React.memo(() => {
     topicMap,
     addTopicPanel,
     addTopicItem,
+    deleteTopicItem,
     updateTopicItem,
     resetTopicPanel,
   } = useTopicStore();
@@ -115,6 +121,18 @@ const GroupTopicPanelRender: React.FC = React.memo(() => {
   );
 
   useGlobalSocketEvent(
+    'plugin:com.msgbyte.topic.delete',
+    (info: { panelId: string; topicId: string }) => {
+      /**
+       * 仅处理当前面板的话题更新
+       */
+      if (info.panelId === panelId) {
+        deleteTopicItem(panelId, info.topicId);
+      }
+    }
+  );
+
+  useGlobalSocketEvent(
     'plugin:com.msgbyte.topic.createComment',
     (topic: GroupTopic) => {
       /**
@@ -146,7 +164,7 @@ const GroupTopicPanelRender: React.FC = React.memo(() => {
   return (
     <Root spinning={loading}>
       {Array.isArray(topicList) && topicList.length > 0 ? (
-        <>
+        <div className="list">
           {topicList.map((item, i) => (
             <TopicCard key={i} topic={item} />
           ))}
@@ -160,7 +178,7 @@ const GroupTopicPanelRender: React.FC = React.memo(() => {
               {Translate.noMore}
             </Button>
           )}
-        </>
+        </div>
       ) : (
         <Empty description={Translate.noTopic}>
           <Button type="primary" onClick={handleCreateTopic}>

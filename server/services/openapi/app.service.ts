@@ -4,12 +4,16 @@ import {
   TcDbService,
   TcContext,
   EntityError,
+  NoPermissionError,
 } from 'tailchat-server-sdk';
 import _ from 'lodash';
 import {
   filterAvailableAppCapability,
+  OpenApp,
+  OpenAppBot,
   OpenAppDocument,
   OpenAppModel,
+  OpenAppOAuth,
 } from '../../models/openapi/app';
 import { Types } from 'mongoose';
 import { nanoid } from 'nanoid';
@@ -46,12 +50,28 @@ class OpenAppService extends TcService {
       params: {
         appId: 'string',
       },
+      cache: {
+        keys: ['appId'],
+        ttl: 60 * 60, // 1 hour
+      },
     });
     this.registerAction('create', this.create, {
       params: {
         appName: 'string',
         appDesc: 'string',
         appIcon: 'string',
+      },
+    });
+    this.registerAction('delete', this.delete, {
+      params: {
+        appId: 'string',
+      },
+    });
+    this.registerAction('setAppInfo', this.setAppInfo, {
+      params: {
+        appId: 'string',
+        fieldName: 'string',
+        fieldValue: 'string',
       },
     });
     this.registerAction('setAppCapability', this.setAppCapability, {
@@ -61,6 +81,13 @@ class OpenAppService extends TcService {
       },
     });
     this.registerAction('setAppOAuthInfo', this.setAppOAuthInfo, {
+      params: {
+        appId: 'string',
+        fieldName: 'string',
+        fieldValue: 'any',
+      },
+    });
+    this.registerAction('setAppBotInfo', this.setAppBotInfo, {
       params: {
         appId: 'string',
         fieldName: 'string',
@@ -173,6 +200,75 @@ class OpenAppService extends TcService {
   }
 
   /**
+   * 删除开放平台应用
+   */
+  async delete(
+    ctx: TcContext<{
+      appId: string;
+    }>
+  ) {
+    const { appId } = ctx.params;
+    const userId = ctx.meta.userId;
+    const t = ctx.meta.t;
+
+    const appInfo: OpenApp = await this.localCall('get', {
+      appId,
+    });
+
+    if (String(appInfo.owner) !== userId) {
+      throw new NoPermissionError(t('没有操作权限'));
+    }
+
+    // 可能会出现ws机器人不会立即中断连接的问题，不重要暂时不处理
+
+    await this.adapter.model.remove({
+      appId,
+      owner: userId,
+    });
+
+    return true;
+  }
+
+  /**
+   * 修改应用信息
+   */
+  async setAppInfo(
+    ctx: TcContext<{
+      appId: string;
+      fieldName: string;
+      fieldValue: string;
+    }>
+  ) {
+    const { appId, fieldName, fieldValue } = ctx.params;
+    const userId = ctx.meta.userId;
+    const t = ctx.meta.t;
+
+    if (!['appName', 'appDesc', 'appIcon'].includes(fieldName)) {
+      // 只允许修改以上字段
+      throw new EntityError(`${t('该数据不允许修改')}: ${fieldName}`);
+    }
+
+    const doc = await this.adapter.model
+      .findOneAndUpdate(
+        {
+          appId,
+          owner: userId,
+        },
+        {
+          [fieldName]: fieldValue,
+        },
+        {
+          new: true,
+        }
+      )
+      .exec();
+
+    this.cleanAppInfoCache(appId);
+
+    return await this.transformDocuments(ctx, {}, doc);
+  }
+
+  /**
    * 设置应用开放的能力
    */
   async setAppCapability(
@@ -195,17 +291,19 @@ class OpenAppService extends TcService {
       })
       .exec();
 
+    await this.cleanAppInfoCache(appId);
+
     return true;
   }
 
   /**
    * 设置OAuth的设置信息
    */
-  async setAppOAuthInfo(
+  async setAppOAuthInfo<T extends keyof OpenAppOAuth>(
     ctx: TcContext<{
       appId: string;
-      fieldName: string;
-      fieldValue: any;
+      fieldName: T;
+      fieldValue: OpenAppOAuth[T];
     }>
   ) {
     const { appId, fieldName, fieldValue } = ctx.params;
@@ -232,6 +330,53 @@ class OpenAppService extends TcService {
         },
       }
     );
+
+    await this.cleanAppInfoCache(appId);
+  }
+
+  /**
+   * 设置Bot的设置信息
+   */
+  async setAppBotInfo<T extends keyof OpenAppBot>(
+    ctx: TcContext<{
+      appId: string;
+      fieldName: T;
+      fieldValue: OpenAppBot[T];
+    }>
+  ) {
+    const { appId, fieldName, fieldValue } = ctx.params;
+    const { userId } = ctx.meta;
+
+    if (!['callbackUrl'].includes(fieldName)) {
+      throw new Error('Not allowed fields');
+    }
+
+    if (fieldName === 'callbackUrl') {
+      if (typeof fieldValue !== 'string') {
+        throw new Error('`callbackUrl` should be a string');
+      }
+    }
+
+    await this.adapter.model.findOneAndUpdate(
+      {
+        appId,
+        owner: userId,
+      },
+      {
+        $set: {
+          [`bot.${fieldName}`]: fieldValue,
+        },
+      }
+    );
+
+    await this.cleanAppInfoCache(appId);
+  }
+
+  /**
+   * 清理获取开放平台应用的缓存
+   */
+  private async cleanAppInfoCache(appId: string) {
+    await this.cleanActionCache('get', [String(appId)]);
   }
 }
 

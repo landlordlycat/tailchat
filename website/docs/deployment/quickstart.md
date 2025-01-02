@@ -1,20 +1,26 @@
 ---
 sidebar_position: 1
-title: 快速开始
+title: Quick Start
 ---
 
-## 演示环境
+## Demo environment
 
-演示环境会持续部署最新前端代码和不定期更新后端代码
+The demo environment will continuously deploy the latest front-end code and update the back-end code from time to time
 
 [https://nightly.paw.msgbyte.com/](https://nightly.paw.msgbyte.com/)
 
-## 部署方式
+## Deployment method
 
-强烈推荐使用 `docker-compose` 部署 `tailchat`
+### Docker/Docker Compose
 
-教程请翻阅: [Docker Compose 部署](./docker-compose.mdx)
+It is highly recommended to use `docker-compose` to deploy `tailchat`
 
-## 系统架构
+Please refer to the tutorial: [Docker Compose Deployment](./docker-compose.mdx)
 
-见 [系统架构](../architecture.md)
+### Kubernetes
+
+Please refer to the tutorial: [Kubernetes Simple Deployment](./other-way/kubernetes/simple.md)
+
+## System Structure
+
+See [System Architecture](../architecture.md)

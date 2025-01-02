@@ -40,6 +40,7 @@ exports[`Markdown link with baseUrl 1`] = `
     <p>
       <a
         href="https://tailchat.msgbyte.com/"
+        target="_blank"
       >
         https://tailchat.msgbyte.com/
       </a>
@@ -47,6 +48,7 @@ exports[`Markdown link with baseUrl 1`] = `
 
       <a
         href="https://tailchat.msgbyte.com/README.md"
+        target="_blank"
       >
         ./README.md
       </a>
@@ -102,6 +104,7 @@ exports[`Markdown link without baseUrl 1`] = `
     <p>
       <a
         href="https://tailchat.msgbyte.com/"
+        target="_blank"
       >
         https://tailchat.msgbyte.com/
       </a>
@@ -109,6 +112,7 @@ exports[`Markdown link without baseUrl 1`] = `
 
       <a
         href="./README.md"
+        target="_blank"
       >
         ./README.md
       </a>
@@ -176,7 +180,6 @@ exports[`Markdown list 1`] = `
 
       <li>
         3
-        
 
         <ul>
           
@@ -188,7 +191,6 @@ exports[`Markdown list 1`] = `
 
           <li>
             5
-            
 
             <ul>
               
@@ -211,6 +213,63 @@ exports[`Markdown list 1`] = `
       
 
     </ul>
+  </div>
+</div>
+`;
+
+exports[`Markdown table 1`] = `
+<div>
+  <div
+    class="tailchat-markdown"
+  >
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <table>
+      <thead>
+        <tr>
+          <th>
+            A
+          </th>
+          <th>
+            B
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>
+            1
+          </td>
+          <td>
+            2
+          </td>
+        </tr>
+        <tr>
+          <td>
+            3
+          </td>
+          <td>
+            4
+          </td>
+        </tr>
+      </tbody>
+    </table>
   </div>
 </div>
 `;

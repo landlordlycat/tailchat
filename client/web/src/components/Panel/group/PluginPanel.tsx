@@ -1,8 +1,8 @@
+import { Problem } from '@/components/Problem';
 import { findPluginPanelInfoByName } from '@/utils/plugin-helper';
 import { Alert } from 'antd';
 import React, { useMemo } from 'react';
 import { isValidStr, t, useGroupPanelInfo } from 'tailchat-shared';
-import { GroupPanelWrapper } from './Wrapper';
 
 interface GroupPluginPanelProps {
   groupId: string;
@@ -65,18 +65,10 @@ export const GroupPluginPanel: React.FC<GroupPluginPanelProps> = React.memo(
     if (!Component) {
       // 没有找到插件组件
       // TODO: Fallback
-      return null;
+      return <Problem text={t('插件渲染函数不存在')} />;
     }
 
-    return (
-      <GroupPanelWrapper
-        groupId={props.groupId}
-        panelId={props.panelId}
-        showHeader={false}
-      >
-        <Component panelInfo={panelInfo} />
-      </GroupPanelWrapper>
-    );
+    return <Component panelInfo={panelInfo} />;
   }
 );
 GroupPluginPanel.displayName = 'GroupPluginPanel';

@@ -14,7 +14,7 @@ export {
   getCachedRegistryPlugins,
   getCachedUserSettings,
 } from './cache/cache';
-export { useCachedUserInfo, useCachedOnlineStatus } from './cache/useCache';
+export { useCachedOnlineStatus } from './cache/useCache';
 
 // components
 export { buildPortal, DefaultEventEmitter } from './components/Portal';
@@ -29,12 +29,17 @@ export {
 } from './contexts/ChatBoxContext';
 export { useColorScheme } from './contexts/ColorSchemeContext';
 export {
+  ConverseMessageProvider,
+  useConverseMessageContext,
+} from './contexts/ConverseMessageContext';
+export {
   GroupInfoContextProvider,
   useGroupInfoContext,
 } from './contexts/GroupInfoContext';
 
 // event
 export { sharedEvent, useSharedEventHandler } from './event/index';
+export type { SharedEventType } from './event/index';
 
 // helper
 export { getDMConverseName } from './helper/converse-helper';
@@ -46,6 +51,7 @@ export {
   setLanguage,
   getLanguage,
   useTranslation,
+  onLanguageLoaded,
 } from './i18n';
 export type { AllowedLanguage } from './i18n';
 export { Trans } from './i18n/Trans';
@@ -54,8 +60,8 @@ export { useLanguage } from './i18n/language';
 // hooks
 export { createUseStorageState } from './hooks/factory/createUseStorageState';
 export { useAvailableServices } from './hooks/model/useAvailableServices';
-export { useGroupUnreadState } from './hooks/model/useGroupUnreadState';
 export { useMessageNotifyEventFilter } from './hooks/model/useMessageNotifyEventFilter';
+export { useCachedUserInfo } from './hooks/model/useUserInfo';
 export { useUserInfoList } from './hooks/model/useUserInfoList';
 export { useUsernames } from './hooks/model/useUsernames';
 export {
@@ -68,13 +74,17 @@ export { useAsync } from './hooks/useAsync';
 export { useAsyncFn } from './hooks/useAsyncFn';
 export { useAsyncRefresh } from './hooks/useAsyncRefresh';
 export { useAsyncRequest } from './hooks/useAsyncRequest';
+export { useDataReady } from './hooks/useDataReady';
 export { useDebounce } from './hooks/useDebounce';
+export { useEditValue } from './hooks/useEditValue';
+export { useEvent } from './hooks/useEvent';
 export { useInterval } from './hooks/useInterval';
+export { useLazyValue } from './hooks/useLazyValue';
 export { useMemoizedFn } from './hooks/useMemoizedFn';
 export { useMountedState } from './hooks/useMountedState';
 export { usePrevious } from './hooks/usePrevious';
 export { useRafState } from './hooks/useRafState';
-export { useSearch } from './hooks/useSearch';
+export { useSearch, useUserSearch } from './hooks/useSearch';
 export { useShallowObject } from './hooks/useShallowObject';
 export { useUpdateRef } from './hooks/useUpdateRef';
 export { useWatch } from './hooks/useWatch';
@@ -99,12 +109,14 @@ export {
   setAlert,
   showGlobalLoading,
   setGlobalLoading,
+  showNotification,
+  setNotification,
 } from './manager/ui';
 
 // model
 export * as model from './model/__all__';
 export { fetchAvailableServices } from './model/common';
-export { fetchGlobalClientConfig } from './model/config';
+export { fetchGlobalClientConfig, getGlobalConfig } from './model/config';
 export {
   createDMConverse,
   appendDMConverseMembers,
@@ -143,8 +155,14 @@ export type {
   GroupBasicInfo,
   GroupInvite,
   GroupMember,
+  GroupPanelFeature,
 } from './model/group';
-export type { InboxItem } from './model/inbox';
+export type {
+  BasicInboxItem,
+  MessageInboxItem,
+  MarkdownInboxItem,
+  InboxItem,
+} from './model/inbox';
 export {
   sendMessage,
   recallMessage,
@@ -184,6 +202,10 @@ export { useConverseAck } from './redux/hooks/useConverseAck';
 export { useConverseMessage } from './redux/hooks/useConverseMessage';
 export { useDMConverseName } from './redux/hooks/useDMConverseName';
 export {
+  useFriendNickname,
+  useFriendNicknameMap,
+} from './redux/hooks/useFriendNickname';
+export {
   useGroupInfo,
   useGroupMemberIds,
   useGroupMemberInfos,
@@ -196,7 +218,9 @@ export { useGroupAck } from './redux/hooks/useGroupAck';
 export { useGroupMemberMute } from './redux/hooks/useGroupMemberMute';
 export {
   useGroupMemberAllPermissions,
+  useGroupPanelMemberAllPermissions,
   useHasGroupPermission,
+  useHasGroupPanelPermission,
 } from './redux/hooks/useGroupPermission';
 export { useUserInfo, useUserId } from './redux/hooks/useUserInfo';
 export { useInboxList, useInboxItem } from './redux/hooks/useInbox';
@@ -210,8 +234,11 @@ export {
 } from './redux/slices';
 export type { ChatConverseState } from './redux/slices/chat';
 export { setupRedux } from './redux/setup';
-export { createStore, ReduxProvider } from './redux/store';
+export { getReduxStore, ReduxProvider } from './redux/store';
 export type { AppStore, AppState, AppDispatch } from './redux/store';
+
+// store
+export { useGlobalConfigStore } from './store/globalConfig';
 
 // utils
 export { joinArray } from './utils/array-helper';
@@ -230,6 +257,7 @@ export {
   isBrowser,
   isNavigator,
   isDevelopment,
+  isProduction,
   version,
 } from './utils/environment';
 export type { PermissionItemType } from './utils/role-helper';
@@ -238,12 +266,12 @@ export { isValidJson } from './utils/json-helper';
 export { MessageHelper } from './utils/message-helper';
 export {
   PERMISSION,
-  AllPermission,
+  ALL_PERMISSION,
   getPermissionList,
   getDefaultPermissionList,
   applyDefaultFallbackGroupPermission,
 } from './utils/role-helper';
 export { uploadFile } from './utils/upload-helper';
-export type { UploadFileResult } from './utils/upload-helper';
+export type { UploadFileResult, UploadFileUsage } from './utils/upload-helper';
 export { parseUrlStr } from './utils/url-helper';
 export { sleep } from './utils/utils';

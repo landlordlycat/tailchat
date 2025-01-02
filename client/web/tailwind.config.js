@@ -30,13 +30,44 @@ const tailchat = plugin(({ e, addUtilities }) => {
         right: 0,
         height: '1px',
         boxShadow: customTheme.boxShadow.elevationLow,
-        zIndex: 1,
+        // zIndex: 1,
         pointerEvents: 'none',
+      },
+    },
+    '.thin-scrollbar': {
+      '&::-webkit-scrollbar': {
+        width: '8px',
+        height: '8px',
+      },
+      '&::-webkit-scrollbar-thumb': {
+        borderWidth: '2px',
+        borderRadius: '3px',
+      },
+      '&::-webkit-scrollbar-track': {
+        borderWidth: '2px',
+        borderRadius: '4px',
       },
     },
   };
 
   addUtilities(newUtilities);
+
+  addUtilities(
+    {
+      '.overflow-smart': {
+        overflow: ['auto', 'overlay'],
+      },
+      '.overflow-x-smart': {
+        'overflow-x': ['auto', 'overlay'],
+      },
+      '.overflow-y-smart': {
+        'overflow-y': ['auto', 'overlay'],
+      },
+    },
+    {
+      variants: ['hover'],
+    }
+  );
 
   // Fork from https://github.com/ItzAfroBoy/tailwindcss-zoom/blob/master/index.js
   const percents = [
@@ -211,6 +242,7 @@ module.exports = {
       borderRadius: ['hover'],
       borderWidth: ['last'],
       height: ['group-hover'],
+      overflow: ['hover'],
     },
   },
   plugins: [tailchat],

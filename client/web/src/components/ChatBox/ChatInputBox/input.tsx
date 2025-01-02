@@ -1,12 +1,24 @@
 import { UserListItem } from '@/components/UserListItem';
-import { getMessageTextDecorators } from '@/plugin/common';
+import { getMessageTextDecorators, useGroupIdContext } from '@/plugin/common';
 import { stopPropagation } from '@/utils/dom-helper';
 import React from 'react';
 import { Mention, MentionsInput } from 'react-mentions';
-import { t } from 'tailchat-shared';
+import { getGroupConfigWithInfo, t, useGroupInfo } from 'tailchat-shared';
 import { useChatInputMentionsContext } from './context';
 import { MentionCommandItem } from './MentionCommandItem';
 import './input.less';
+
+const defaultChatInputBoxInputStyle = {
+  input: {
+    overflow: 'auto',
+    maxHeight: 70,
+  },
+  highlighter: {
+    boxSizing: 'border-box',
+    overflow: 'hidden',
+    maxHeight: 70,
+  },
+};
 
 interface ChatInputBoxInputProps
   extends Omit<
@@ -21,6 +33,9 @@ export const ChatInputBoxInput: React.FC<ChatInputBoxInputProps> = React.memo(
   (props) => {
     const { users, panels, placeholder, disabled } =
       useChatInputMentionsContext();
+    const groupId = useGroupIdContext();
+    const groupInfo = useGroupInfo(groupId);
+    const { hideGroupMemberDiscriminator } = getGroupConfigWithInfo(groupInfo);
 
     return (
       <MentionsInput
@@ -28,13 +43,13 @@ export const ChatInputBoxInput: React.FC<ChatInputBoxInputProps> = React.memo(
         className="chatbox-mention-input"
         placeholder={placeholder ?? t('输入一些什么')}
         disabled={disabled}
-        singleLine={true}
+        style={defaultChatInputBoxInputStyle}
         maxLength={1000}
         value={props.value}
         onChange={(e, newValue, _, mentions) =>
           props.onChange(
             newValue,
-            mentions.map((m) => m.id)
+            mentions.filter((m) => m.display.startsWith('@')).map((m) => m.id) // 仅处理mention的数据进行记录
           )
         }
         onKeyDown={props.onKeyDown}
@@ -45,17 +60,25 @@ export const ChatInputBoxInput: React.FC<ChatInputBoxInputProps> = React.memo(
       >
         <Mention
           trigger="@"
-          data={users}
+          data={
+            (query) =>
+              (users ?? [])
+                .filter((u) => u.display?.includes(query))
+                .slice(0, 20) // max display 20 item at most
+          }
           displayTransform={(id, display) => `@${display}`}
           appendSpaceOnAdd={true}
           renderSuggestion={(suggestion) => (
-            <UserListItem userId={String(suggestion.id)} />
+            <UserListItem
+              userId={String(suggestion.id)}
+              hideDiscriminator={hideGroupMemberDiscriminator}
+            />
           )}
           markup={getMessageTextDecorators().mention('__id__', '__display__')}
         />
         <Mention
           trigger="#"
-          data={panels}
+          data={panels ?? []}
           displayTransform={(id, display) => `#${display}`}
           appendSpaceOnAdd={true}
           renderSuggestion={(suggestion) => (

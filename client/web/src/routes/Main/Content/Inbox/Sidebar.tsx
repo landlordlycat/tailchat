@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
-import { CommonSidebarWrapper } from '@/components/CommonSidebarWrapper';
 import {
+  BasicInboxItem,
   chatActions,
   InboxItem,
   isValidStr,
@@ -14,12 +14,14 @@ import clsx from 'clsx';
 import _orderBy from 'lodash/orderBy';
 import { GroupName } from '@/components/GroupName';
 import { ConverseName } from '@/components/ConverseName';
-import { getMessageRender } from '@/plugin/common';
+import { getMessageRender, pluginInboxItemMap } from '@/plugin/common';
 import { useLocation } from 'react-router';
 import { Link } from 'react-router-dom';
 import { PillTabPane, PillTabs } from '@/components/PillTabs';
 import { SectionHeader } from '@/components/SectionHeader';
 import { openReconfirmModalP } from '@/components/Modal';
+import { CommonSidebarWrapper } from '@/components/CommonSidebarWrapper';
+import { Virtuoso } from 'react-virtuoso';
 
 const buildLink = (itemId: string) => `/main/inbox/${itemId}`;
 
@@ -33,23 +35,58 @@ export const InboxSidebar: React.FC = React.memo(() => {
 
   const renderInbox = (item: InboxItem) => {
     if (item.type === 'message') {
-      const message: Partial<model.inbox.InboxItem['message']> =
-        item.message ?? {};
+      const payload: Partial<model.inbox.InboxItem['payload']> =
+        item.message ?? item.payload ?? {};
       let title: React.ReactNode = '';
-      if (isValidStr(message.groupId)) {
-        title = <GroupName groupId={message.groupId} />;
-      } else if (isValidStr(message.converseId)) {
-        title = <ConverseName converseId={message.converseId} />;
+      if (isValidStr(payload.groupId)) {
+        title = <GroupName groupId={payload.groupId} />;
+      } else if (isValidStr(payload.converseId)) {
+        title = <ConverseName converseId={payload.converseId} />;
       }
 
       return (
         <InboxSidebarItem
           key={item._id}
           title={title}
-          desc={getMessageRender(message.messageSnippet ?? '')}
+          desc={getMessageRender(payload.messageSnippet ?? '')}
           source={'Tailchat'}
           readed={item.readed}
           to={buildLink(item._id)}
+        />
+      );
+    }
+
+    if (item.type === 'markdown') {
+      const payload: Partial<model.inbox.InboxItem['payload']> =
+        item.payload ?? {};
+      const title = payload.title || t('新消息');
+
+      return (
+        <InboxSidebarItem
+          key={item._id}
+          title={title}
+          desc={t('点击查看详情')}
+          source={payload.source ?? 'Tailchat'}
+          readed={item.readed}
+          to={buildLink(item._id)}
+        />
+      );
+    }
+
+    // For plugins
+    const _item = item as BasicInboxItem;
+    if (pluginInboxItemMap[_item.type]) {
+      const info = pluginInboxItemMap[_item.type];
+      const preview = info.getPreview(_item);
+
+      return (
+        <InboxSidebarItem
+          key={_item._id}
+          title={preview.title}
+          desc={preview.desc}
+          source={info.source ?? 'Unknown'}
+          readed={_item.readed}
+          to={buildLink(_item._id)}
         />
       );
     }
@@ -99,15 +136,34 @@ export const InboxSidebar: React.FC = React.memo(() => {
         {t('收件箱')}
       </SectionHeader>
 
-      <div>
-        <PillTabs>
-          <PillTabPane key="1" tab={`${t('全部')}`}>
-            {fullList.map((item) => renderInbox(item))}
-          </PillTabPane>
-          <PillTabPane key="2" tab={`${t('未读')} (${unreadList.length})`}>
-            {unreadList.map((item) => renderInbox(item))}
-          </PillTabPane>
-        </PillTabs>
+      <div className="overflow-hidden flex-1">
+        <PillTabs
+          className="h-full"
+          items={[
+            {
+              key: '1',
+              label: `${t('全部')}`,
+              children: (
+                <Virtuoso
+                  className="h-full"
+                  data={fullList}
+                  itemContent={(index, item) => renderInbox(item)}
+                />
+              ),
+            },
+            {
+              key: '2',
+              label: `${t('未读')} (${unreadList.length})`,
+              children: (
+                <Virtuoso
+                  className="h-full"
+                  data={unreadList}
+                  itemContent={(index, item) => renderInbox(item)}
+                />
+              ),
+            },
+          ]}
+        />
       </div>
     </CommonSidebarWrapper>
   );

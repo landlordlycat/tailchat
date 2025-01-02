@@ -11,6 +11,8 @@ interface GroupMemberStruct {
   roles?: string[]; // 角色
 
   userId: string;
+
+  muteUntil?: string;
 }
 
 export interface GroupPanelStruct {
@@ -41,15 +43,21 @@ export interface GroupRoleStruct {
 }
 
 export interface GroupStruct {
+  _id: string;
+
   name: string;
 
   avatar?: string;
 
   owner: string;
 
+  description?: string;
+
   members: GroupMemberStruct[];
 
   panels: GroupPanelStruct[];
 
   roles?: GroupRoleStruct[];
+
+  config: Record<string, any>;
 }

@@ -1,12 +1,16 @@
+import { getMessageTextDecorators } from '@/plugin/common';
 import React from 'react';
-import { ChatBoxContextProvider, useConverseMessage } from 'tailchat-shared';
+import {
+  ChatBoxContextProvider,
+  ConverseMessageProvider,
+  useConverseMessageContext,
+} from 'tailchat-shared';
 import { ErrorView } from '../ErrorView';
 import { ChatBoxPlaceholder } from './ChatBoxPlaceholder';
 import { ChatInputBox } from './ChatInputBox';
 import { ChatMessageList } from './ChatMessageList';
 import { ChatReply } from './ChatReply';
 import { preprocessMessage } from './preprocessMessage';
-import { useMessageAck } from './useMessageAck';
 
 type ChatBoxProps =
   | {
@@ -22,20 +26,16 @@ type ChatBoxProps =
       groupId: string;
     };
 const ChatBoxInner: React.FC<ChatBoxProps> = React.memo((props) => {
-  const { converseId, converseTitle, isGroup } = props;
+  const { converseId, converseTitle } = props;
   const {
     messages,
     loading,
     error,
     isLoadingMore,
     hasMoreMessage,
-    handleFetchMoreMessage,
-    handleSendMessage,
-  } = useConverseMessage({
-    converseId,
-    isGroup,
-  });
-  useMessageAck(converseId);
+    fetchMoreMessage,
+    sendMessage,
+  } = useConverseMessageContext();
 
   if (loading) {
     return <ChatBoxPlaceholder />;
@@ -46,24 +46,26 @@ const ChatBoxInner: React.FC<ChatBoxProps> = React.memo((props) => {
   }
 
   return (
-    <div className="w-full h-full flex flex-col select-text relative">
+    <div className="w-full h-full flex flex-col select-text relative text-sm">
       <ChatMessageList
         key={converseId}
         title={converseTitle}
         messages={messages}
         isLoadingMore={isLoadingMore}
         hasMoreMessage={hasMoreMessage}
-        onLoadMore={handleFetchMoreMessage}
+        onLoadMore={fetchMoreMessage}
       />
 
       <ChatReply />
 
       <ChatInputBox
-        onSendMsg={(msg, meta) => {
-          handleSendMessage({
+        onSendMsg={async (msg, meta) => {
+          const content = preprocessMessage(msg);
+          await sendMessage({
             converseId: props.converseId,
             groupId: props.groupId,
-            content: preprocessMessage(msg),
+            content,
+            plain: getMessageTextDecorators().serialize(content),
             meta,
           });
         }}
@@ -76,7 +78,12 @@ ChatBoxInner.displayName = 'ChatBoxInner';
 export const ChatBox: React.FC<ChatBoxProps> = React.memo((props) => {
   return (
     <ChatBoxContextProvider>
-      <ChatBoxInner {...props} />
+      <ConverseMessageProvider
+        converseId={props.converseId}
+        isGroup={props.isGroup}
+      >
+        <ChatBoxInner {...props} />
+      </ConverseMessageProvider>
     </ChatBoxContextProvider>
   );
 });

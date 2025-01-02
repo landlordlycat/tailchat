@@ -9,11 +9,11 @@ import {
   groupActions,
 } from 'tailchat-shared';
 import type { GroupPanel } from 'tailchat-shared';
-import { Avatar } from '../Avatar';
 import { closeModal, ModalWrapper } from '../Modal';
 import { Slides, SlidesRef } from '../Slides';
 import { useNavigate } from 'react-router';
 import { applyDefaultFallbackGroupPermission } from 'tailchat-shared';
+import { Avatar } from 'tailchat-design';
 
 const panelTemplate: {
   key: string;
@@ -142,7 +142,7 @@ export const ModalCreateGroup: React.FC = React.memo(() => {
 
           <div className="text-center mb-2">
             {/* TODO: upload avatar */}
-            <Avatar size={80} name={name} />
+            <Avatar className="mx-auto" size={80} name={name} />
           </div>
 
           <div>

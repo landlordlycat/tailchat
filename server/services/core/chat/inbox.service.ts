@@ -4,7 +4,9 @@ import {
   TcContext,
   TcDbService,
   TcPureContext,
+  InboxStruct,
 } from 'tailchat-server-sdk';
+import pMap from 'p-map';
 
 /**
  * 收件箱管理
@@ -31,12 +33,17 @@ class InboxService extends TcService {
           if (payload.type === 'add') {
             await Promise.all(
               mentions.map((userId) => {
-                return ctx.call('chat.inbox.appendMessage', {
+                return ctx.call('chat.inbox.append', {
                   userId,
-                  groupId: payload.groupId,
-                  converseId: payload.converseId,
-                  messageId: payload.messageId,
-                  messageSnippet: payload.content,
+                  type: 'message',
+                  payload: {
+                    groupId: payload.groupId,
+                    converseId: payload.converseId,
+                    messageId: payload.messageId,
+                    messageAuthor: payload.author,
+                    messageSnippet: payload.content,
+                    messagePlainContent: payload.plain,
+                  },
                 });
               })
             );
@@ -56,14 +63,20 @@ class InboxService extends TcService {
       }
     );
 
-    this.registerAction('appendMessage', this.appendMessage, {
+    this.registerAction('append', this.append, {
       visibility: 'public',
       params: {
         userId: { type: 'string', optional: true },
-        groupId: { type: 'string', optional: true },
-        converseId: 'string',
-        messageId: 'string',
-        messageSnippet: 'string',
+        type: 'string',
+        payload: 'any',
+      },
+    });
+    this.registerAction('batchAppend', this.batchAppend, {
+      visibility: 'public',
+      params: {
+        userIds: { type: 'array', items: 'string' },
+        type: 'string',
+        payload: 'any',
       },
     });
     this.registerAction('removeMessage', this.removeMessage, {
@@ -84,37 +97,71 @@ class InboxService extends TcService {
     this.registerAction('clear', this.clear);
   }
 
-  async appendMessage(
+  /**
+   * 通用的增加inbox的接口
+   * 用于内部，插件化的形式
+   */
+  async append(
     ctx: TcContext<{
       userId?: string;
-      groupId?: string;
-      converseId: string;
-      messageId: string;
-      messageSnippet: string;
+      type: string;
+      payload: Record<string, any>;
     }>
   ) {
-    const {
-      userId = ctx.meta.userId,
-      groupId,
-      converseId,
-      messageId,
-      messageSnippet,
-    } = ctx.params;
+    const { userId = ctx.meta.userId, type, payload } = ctx.params;
 
     const doc = await this.adapter.model.create({
       userId,
-      type: 'message',
-      message: {
-        groupId,
-        converseId,
-        messageId,
-        messageSnippet,
-      },
+      type,
+      payload,
     });
 
     const inboxItem = await this.transformDocuments(ctx, {}, doc);
 
     await this.notifyUsersInboxAppend(ctx, [userId], inboxItem);
+    await this.emitInboxAppendEvent(ctx, inboxItem);
+
+    return true;
+  }
+
+  /**
+   * append 的多用户版本
+   */
+  async batchAppend(
+    ctx: TcContext<{
+      userIds: string[];
+      type: string;
+      payload: Record<string, any>;
+    }>
+  ) {
+    const { userIds, type, payload } = ctx.params;
+
+    const docs = await this.adapter.model.create(
+      userIds.map((userId) => ({
+        userId,
+        type,
+        payload,
+      }))
+    );
+
+    const inboxItems: InboxStruct[] = await this.transformDocuments(
+      ctx,
+      {},
+      docs
+    );
+
+    pMap(
+      inboxItems,
+      async (inboxItem) => {
+        await Promise.all([
+          this.notifyUsersInboxAppend(ctx, [inboxItem.userId], inboxItem),
+          this.emitInboxAppendEvent(ctx, inboxItem),
+        ]);
+      },
+      {
+        concurrency: 10,
+      }
+    );
 
     return true;
   }
@@ -137,7 +184,7 @@ class InboxService extends TcService {
     await this.adapter.model.remove({
       userId,
       type: 'message',
-      message: {
+      payload: {
         groupId,
         converseId,
         messageId,
@@ -200,9 +247,7 @@ class InboxService extends TcService {
   }
 
   /**
-   * 发送通知群组信息有新的内容
-   *
-   * 发送通知时会同时清空群组信息缓存
+   * 通知用户收件箱追加了新的内容
    */
   private async notifyUsersInboxAppend(
     ctx: TcPureContext,
@@ -213,15 +258,23 @@ class InboxService extends TcService {
   }
 
   /**
-   * 发送通知群组信息发生变更
-   *
-   * 发送通知时会同时清空群组信息缓存
+   * 通知用户收件箱有新的内容
    */
   private async notifyUsersInboxUpdate(
     ctx: TcPureContext,
     userIds: string[]
   ): Promise<void> {
     await this.listcastNotify(ctx, userIds, 'updated', {});
+  }
+
+  /**
+   * 向微服务通知有新的内容产生
+   */
+  private async emitInboxAppendEvent(
+    ctx: TcPureContext,
+    inboxItem: InboxStruct
+  ) {
+    await ctx.emit('chat.inbox.append', inboxItem);
   }
 }
 

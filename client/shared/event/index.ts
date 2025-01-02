@@ -24,6 +24,12 @@ export interface SharedEventMap {
   loadColorScheme: (schemeName: string) => void;
 
   /**
+   * 请求webrtc相关权限
+   * 目前用于视频会议
+   */
+  ensureWebRTCPermission: () => void;
+
+  /**
    * 网络状态更新
    */
   updateNetworkStatus: (
@@ -43,17 +49,13 @@ export interface SharedEventMap {
   replyMessage: (payload: ChatMessage | null) => void;
 
   /**
-   * 消息已读(消息出现在界面上)
-   */
-  readMessage: (payload: ChatMessage | null) => void;
-
-  /**
-   * 接受到消息(所有的)
+   * 接受到消息(所有的(相对receiveUnmutedMessage来说))
    */
   receiveMessage: (payload: ChatMessage) => void;
 
   /**
    * 接受到未被静音的消息
+   * 一般用于消息推送
    */
   receiveUnmutedMessage: (payload: ChatMessage) => void;
 
